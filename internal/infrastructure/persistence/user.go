@@ -27,7 +27,7 @@ func userRepositoryBuilder(factory *repositoryFactory) {
 }
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*user.User, error) {
-	do := new(do.UserDO)
+	do := new(do.User)
 	err := ur.db.GetContext(ctx, do, "select * from user where id=$1 and deleted=0 limit 1", uid)
 	if err != nil {
 		return nil, err
@@ -43,13 +43,13 @@ func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
 	if user.Version == 0 {
 		if _, err := ur.db.NamedExecContext(ctx,
 			"INSERT INTO user (id, name, password, email, version) VALUES (:id, :name, :password, :email, 1)",
-			&do.UserDO{}); err != nil {
+			&do.User{}); err != nil {
 			return err
 		}
 	} else {
 		if _, err := ur.db.NamedExecContext(ctx,
 			"UPDATE user SET name=:name, password=:password, email=:email, version=version+1 where id=:id and deleted=0 and version=:version",
-			&do.UserDO{}); err != nil {
+			&do.User{}); err != nil {
 			return err
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type UserDO struct {
+type User struct {
 	ID       string       `db:"id"`
 	Name     string       `db:"name"`
 	Password sql.RawBytes `db:"password" copier:"HashedPassword"`
