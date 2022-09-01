@@ -6,8 +6,8 @@ import (
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/application/assembler"
+	"github.com/go-jimu/template/internal/application/dto"
 	"github.com/go-jimu/template/internal/domain/user"
-	"github.com/go-jimu/template/internal/transport/dto"
 )
 
 type userApplication struct {

@@ -1,8 +1,8 @@
 package assembler
 
 import (
+	"github.com/go-jimu/template/internal/application/dto"
 	"github.com/go-jimu/template/internal/domain/user"
-	"github.com/go-jimu/template/internal/transport/dto"
 	"github.com/jinzhu/copier"
 )
 
