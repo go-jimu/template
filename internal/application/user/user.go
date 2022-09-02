@@ -10,11 +10,19 @@ import (
 	"github.com/go-jimu/template/internal/domain/user"
 )
 
+type Queries struct {
+	FindUserList FindUserListHandler
+}
+
+type Commands struct {
+	ChangePassword CommandChangePasswordHandler
+}
+
 type userApplication struct {
 	log      *logger.Helper
 	repo     user.UserRepository
-	Commands any
-	Queries  any
+	Queries  *Queries
+	Commands *Commands
 	Handlers []mediator.EventHandler
 }
 

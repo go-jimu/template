@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-jimu/components/logger"
+	uapp "github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/domain/user"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -26,7 +27,8 @@ type (
 	builder func(*sqlx.DB, *logger.Helper, *Repositories)
 
 	Repositories struct {
-		User user.UserRepository
+		User      user.UserRepository
+		QueryUser uapp.QueryUserRepository
 	}
 )
 
@@ -51,6 +53,7 @@ func init() {
 	factory = &repositoryFactory{
 		builders: []builder{
 			userRepositoryBuilder,
+			queryUserRepositoryBuilder,
 		},
 	}
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 
 	"github.com/go-jimu/components/logger"
+	"github.com/go-jimu/template/internal/application/dto"
 	"github.com/go-jimu/template/internal/domain/user"
 	"github.com/go-jimu/template/internal/eventbus"
 	"github.com/go-jimu/template/internal/infrastructure/converter"
 	"github.com/go-jimu/template/internal/infrastructure/do"
+	"github.com/jinzhu/copier"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -59,4 +61,38 @@ func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
 	}
 	user.Events.Raise(ctx, eventbus.Default())
 	return nil
+}
+
+type queryUserRepository struct {
+	log *logger.Helper
+	db  *sqlx.DB
+}
+
+func queryUserRepositoryBuilder(db *sqlx.DB, log *logger.Helper, repos *Repositories) {
+	repos.QueryUser = &queryUserRepository{db: db, log: log}
+}
+
+func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) (int, error) {
+	ret := make([]int, 1)
+	err := q.db.SelectContext(ctx, &ret, "select count(1) from user where name like ? and deleted=0 ;", "%"+name+"%")
+	if err != nil {
+		return 0, err
+	}
+	return ret[0], nil
+}
+
+func (q *queryUserRepository) FindUserList(ctx context.Context, name string, limit, offset int) ([]*dto.User, error) {
+	ret := make([]*do.User, 0)
+	err := q.db.SelectContext(ctx, &ret, "select * from user where name like ? and deleted=0 order by ctime limit ? offset ?", "%"+name+"%", limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	dtos := make([]*dto.User, len(ret))
+	for index, u := range ret {
+		dtos[index] = new(dto.User)
+		if err = copier.Copy(dtos[index], u); err != nil {
+			return nil, err
+		}
+	}
+	return dtos, nil
 }
