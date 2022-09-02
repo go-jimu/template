@@ -20,33 +20,31 @@ type (
 	}
 
 	repositoryFactory struct {
-		db       *sqlx.DB
-		log      *logger.Helper
 		builders []builder
-		User     user.UserRepository
 	}
 
-	builder func(*repositoryFactory)
+	builder func(*sqlx.DB, *logger.Helper, *Repositories)
+
+	Repositories struct {
+		User user.UserRepository
+	}
 )
 
 var factory = new(repositoryFactory)
 
-func BuildRepositories(opt Option, log *logger.Helper) *repositoryFactory {
-	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
+func BuildRepositories(opt Option, log *logger.Helper) *Repositories {
+	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
 	if err != nil {
 		panic(err)
 	}
 
 	db.SetMaxOpenConns(opt.MaxOpenConns)
 
-	factory.db = db
-	factory.log = log
-
+	repos := new(Repositories)
 	for _, builder := range factory.builders {
-		builder(factory)
+		builder(db, log, repos)
 	}
-
-	return factory
+	return repos
 }
 
 func init() {

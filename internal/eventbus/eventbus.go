@@ -16,7 +16,8 @@ func Dispatch(ctx context.Context, event mediator.Event) {
 	eventbus.Dispatch(ctx, event)
 }
 
-func Get() mediator.Mediator {
+// Default return the default event bus instance
+func Default() mediator.Mediator {
 	return eventbus
 }
 
