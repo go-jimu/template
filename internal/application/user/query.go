@@ -13,24 +13,20 @@ type (
 		CountUserNumber(context.Context, string) (int, error)
 	}
 
-	FindUserListRequest struct {
-		Name     string `json:"name"`
-		Page     int    `json:"page"`
-		PageSize int    `json:"page_size"`
-	}
-
-	FindUserListResponse struct {
-		Total int         `json:"total"`
-		Users []*dto.User `json:"users"`
-	}
-
 	FindUserListHandler struct {
 		log       *logger.Helper
 		readModel QueryUserRepository
 	}
 )
 
-func (h *FindUserListHandler) Handle(ctx context.Context, req *FindUserListRequest) (*FindUserListResponse, error) {
+func NewFindUserListHandler(log logger.Logger, read QueryUserRepository) *FindUserListHandler {
+	return &FindUserListHandler{
+		log:       logger.NewHelper(log),
+		readModel: read,
+	}
+}
+
+func (h *FindUserListHandler) Handle(ctx context.Context, req *dto.FindUserListRequest) (*dto.FindUserListResponse, error) {
 	log := h.log.WithContext(ctx)
 	log.Infof("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
 	if req.PageSize > 100 {
@@ -50,5 +46,5 @@ func (h *FindUserListHandler) Handle(ctx context.Context, req *FindUserListReque
 		log.Errorf("failed to find user: %s", err.Error())
 		return nil, err
 	}
-	return &FindUserListResponse{Total: total, Users: users}, nil
+	return &dto.FindUserListResponse{Total: total, Users: users}, nil
 }

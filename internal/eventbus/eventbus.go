@@ -6,7 +6,7 @@ import (
 	"github.com/go-jimu/components/mediator"
 )
 
-var eventbus = mediator.NewInMemMediator(10)
+var eventbus mediator.Mediator
 
 func Subscribe(eh mediator.EventHandler) {
 	eventbus.Subscribe(eh)

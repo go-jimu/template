@@ -11,11 +11,11 @@ import (
 )
 
 type Queries struct {
-	FindUserList FindUserListHandler
+	FindUserList *FindUserListHandler
 }
 
 type Commands struct {
-	ChangePassword CommandChangePasswordHandler
+	ChangePassword *CommandChangePasswordHandler
 }
 
 type userApplication struct {
@@ -23,11 +23,27 @@ type userApplication struct {
 	repo     user.UserRepository
 	Queries  *Queries
 	Commands *Commands
-	Handlers []mediator.EventHandler
+	handlers []mediator.EventHandler
 }
 
-func NewUserApplication(log *logger.Helper, repo user.UserRepository) *userApplication {
-	return &userApplication{log: log, repo: repo}
+func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserRepository, read QueryUserRepository) *userApplication {
+	app := &userApplication{
+		log:  logger.NewHelper(log),
+		repo: repo,
+		Queries: &Queries{
+			FindUserList: NewFindUserListHandler(log, read),
+		},
+		Commands: &Commands{
+			ChangePassword: NewCommandChangePasswordHandler(log, repo),
+		},
+		handlers: []mediator.EventHandler{
+			NewUserCreatedHandler(),
+		},
+	}
+	for _, hdl := range app.handlers {
+		ev.Subscribe(hdl)
+	}
+	return app
 }
 
 func (app *userApplication) Get(ctx context.Context, uid string) (*dto.User, error) {

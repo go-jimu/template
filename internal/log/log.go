@@ -1,19 +1,37 @@
 package log
 
 import (
-	"context"
+	"os"
 
 	"github.com/go-jimu/components/logger"
 )
 
-func LogRequestID(key string) logger.Valuer {
-	return func(ctx context.Context) interface{} {
-		if ctx == nil {
-			return "none"
-		}
-		value := ctx.Value(key)
-		return value
+type Option struct {
+	Level      string
+	MessageKey string
+}
+
+var (
+	levelDescriptions = map[string]logger.Level{
+		"debug": logger.Debug,
+		"info":  logger.Info,
+		"warn":  logger.Warn,
+		"error": logger.Error,
+		"panic": logger.Panic,
+		"fatal": logger.Fatal,
 	}
+
+	log logger.Logger
+)
+
+func NewLogger(opt Option) logger.Logger {
+	log = logger.NewStdLogger(os.Stdout)
+	log = logger.With(log, "caller", Caller())
+	log = logger.NewHelper(log,
+		logger.WithLevel(levelDescriptions[opt.Level]),
+		logger.WithMessageKey(opt.MessageKey),
+	)
+	return log
 }
 
 func Caller() logger.Valuer {

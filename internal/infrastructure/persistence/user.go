@@ -5,28 +5,29 @@ import (
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/application/dto"
+	uapp "github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/domain/user"
 	"github.com/go-jimu/template/internal/eventbus"
 	"github.com/go-jimu/template/internal/infrastructure/converter"
 	"github.com/go-jimu/template/internal/infrastructure/do"
-	"github.com/jinzhu/copier"
 	"github.com/jmoiron/sqlx"
 )
 
-type userRepository struct {
-	log *logger.Helper
-	db  *sqlx.DB
-}
+type (
+	userRepository struct {
+		log *logger.Helper
+		db  *sqlx.DB
+	}
+	queryUserRepository struct {
+		log *logger.Helper
+		db  *sqlx.DB
+	}
+)
 
-var _ user.UserRepository = (*userRepository)(nil)
-
-func userRepositoryBuilder(conn *sqlx.DB, log *logger.Helper, repos *Repositories) {
-	repo := newUserRepository(conn, log)
-	repos.User = repo
-}
-
-func newUserRepository(db *sqlx.DB, log *logger.Helper) user.UserRepository {
-	return &userRepository{db: db, log: log}
+func newUserRepository(db *sqlx.DB, log logger.Logger) user.UserRepository {
+	return &userRepository{
+		db:  db,
+		log: logger.NewHelper(log)}
 }
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*user.User, error) {
@@ -43,7 +44,7 @@ func (ur *userRepository) Get(ctx context.Context, uid string) (*user.User, erro
 }
 
 func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
-	data, err := converter.ConvertEntityUser(user)
+	data, err := converter.ConvertUserToDO(user)
 	if err != nil {
 		return err
 	}
@@ -63,13 +64,11 @@ func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
 	return nil
 }
 
-type queryUserRepository struct {
-	log *logger.Helper
-	db  *sqlx.DB
-}
-
-func queryUserRepositoryBuilder(db *sqlx.DB, log *logger.Helper, repos *Repositories) {
-	repos.QueryUser = &queryUserRepository{db: db, log: log}
+func newQueryUserRepository(db *sqlx.DB, log logger.Logger) uapp.QueryUserRepository {
+	return &queryUserRepository{
+		db:  db,
+		log: logger.NewHelper(log),
+	}
 }
 
 func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) (int, error) {
@@ -89,10 +88,11 @@ func (q *queryUserRepository) FindUserList(ctx context.Context, name string, lim
 	}
 	dtos := make([]*dto.User, len(ret))
 	for index, u := range ret {
-		dtos[index] = new(dto.User)
-		if err = copier.Copy(dtos[index], u); err != nil {
+		d, err := converter.ConvertDoUserToDTO(u)
+		if err != nil {
 			return nil, err
 		}
+		dtos[index] = d
 	}
 	return dtos, nil
 }

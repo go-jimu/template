@@ -2,23 +2,25 @@ package user
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/domain/user"
 )
 
-type NotificationHandler struct {
+type UserCreatedHandler struct {
 }
 
-func (s NotificationHandler) Listening() []mediator.EventKind {
+func NewUserCreatedHandler() *UserCreatedHandler {
+	return &UserCreatedHandler{}
+}
+
+func (s UserCreatedHandler) Listening() []mediator.EventKind {
 	return []mediator.EventKind{user.EKUserCreated}
 }
 
-func (s NotificationHandler) Handle(ctx context.Context, ev mediator.Event) {
+func (s UserCreatedHandler) Handle(ctx context.Context, ev mediator.Event) {
 	select {
 	case <-ctx.Done():
 	default:
 	}
-	fmt.Println(ev)
 }
