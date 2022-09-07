@@ -5,10 +5,17 @@ import (
 	"time"
 )
 
-type Option struct {
-	Timeout         time.Duration
-	ShutdownTimeout time.Duration
-}
+type (
+	Option struct {
+		Timeout         time.Duration
+		ShutdownTimeout time.Duration
+	}
+
+	mergedContext struct {
+		left  context.Context
+		right context.Context
+	}
+)
 
 var (
 	parent          context.Context
@@ -42,4 +49,9 @@ func KillContextsAfter(t time.Duration) {
 
 func KillContextsImmediately() {
 	cancel()
+}
+
+// MergeContext TODO: 合并context.Context，解决chi的问题
+func MergeContext(c1, c2 context.Context) context.Context {
+	return nil
 }
