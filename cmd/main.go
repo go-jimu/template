@@ -23,7 +23,7 @@ func main() {
 	log.Infof("inited global logger")
 
 	// pkg layer
-	context.New(context.Option{Timeout: 5 * time.Second, ShutdownTimeout: 30 * time.Second})
+	context.New(context.Option{Timeout: 3 * time.Second, ShutdownTimeout: 5 * time.Second})
 
 	// domain layer
 	eb := mediator.NewInMemMediator(10)
@@ -36,21 +36,16 @@ func main() {
 	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
 
 	// transport layer
-	r := rest.NewRouter(app)
-	srv := &http.Server{
-		Addr:    ":9090",
-		Handler: r,
-	}
+	srv := rest.NewServer(rest.Option{Addr: ":9090"}, log, app)
 
+	// graceful shutdown
 	errChan := make(chan error, 1)
-
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			errChan <- err
 		}
 	}()
 
-	// graceful shutdown
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
@@ -64,7 +59,7 @@ func main() {
 	log.Warnf("start to shutdown server: %s", err.Error())
 	ctx, cancel := context.GenShutdownContext()
 	defer cancel()
-	log.Warnf("kill all available contexts in %s", (3 * time.Second).String())
+	log.Warnf("kill all available contexts in %s", (1 * time.Second).String())
 	<-ctx.Done()
 	context.KillContextsImmediately()
 	os.Exit(0)

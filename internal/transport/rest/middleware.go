@@ -2,27 +2,73 @@ package rest
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/pkg/context"
 )
 
-func InjectContext(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		// TODO: chi使用了自定义的Context，导致替换成原生的Context会导致某些中间件异常，需要采用合并的策略解决此问题
-		c2, cancel := context.GenDefaultContext()
-		defer cancel()
-		ctx, cancel2 := context.MergeContext(r.Context(), c2)
-		defer cancel2()
-
-		r = r.WithContext(ctx)
-
-		next.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
+type logEntry struct {
+	log *logger.Helper
+	req *http.Request
 }
 
-func Log(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {}
+func newLogEntry(log logger.Logger, r *http.Request) middleware.LogEntry {
+	return &logEntry{
+		log: logger.NewHelper(log),
+		req: r,
+	}
+}
+
+func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
+	log := le.log.WithContext(le.req.Context())
+	log.Info("msg", "request complete",
+		"request_method", le.req.Method,
+		"request_path", le.req.URL.Path,
+		"request_query", le.req.URL.RawQuery,
+		"user_agent", le.req.Header.Get("User-Agent"),
+		"client_ip", le.req.RemoteAddr,
+		"response_status_code", status,
+		"response_bytes_length", bytes,
+		"elapsed", elapsed.String(),
+	)
+}
+
+func (le *logEntry) Panic(v interface{}, stack []byte) {
+	log := le.log.WithContext(le.req.Context())
+	log.Error("msg", "broken request",
+		"panic", v,
+		"stack", string(stack),
+	)
+}
+
+func RequestLog(log logger.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			entry := newLogEntry(log, r)
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			start := time.Now()
+
+			defer func() {
+				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(start), nil)
+			}()
+
+			next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
+		}
+		return http.HandlerFunc(fn)
+	}
+}
+
+func InjectContext(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.GenDefaultContext()
+		defer cancel()
+		mc, mcCancel := context.MergeContext(r.Context(), ctx)
+		defer mcCancel()
+
+		next.ServeHTTP(w, r.WithContext(mc))
+	}
+
 	return http.HandlerFunc(fn)
 }
