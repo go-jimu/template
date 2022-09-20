@@ -30,7 +30,7 @@ func main() {
 	eventbus.Set(eb)
 
 	// infra layer
-	repos := persistence.NewRepositories(persistence.Option{Host: "localhost", Port: 3306, User: "root", Password: "wosai", Database: "example"}, log)
+	repos := persistence.NewRepositories(persistence.Option{Host: "localhost", Port: 3306, User: "root", Password: "root", Database: "jimu"}, log)
 
 	// application layer
 	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
