@@ -33,10 +33,10 @@ func main() {
 	repos := persistence.NewRepositories(persistence.Option{Host: "localhost", Port: 3306, User: "root", Password: "wosai", Database: "example"}, log)
 
 	// application layer
-	_ = user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
+	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
 
 	// transport layer
-	r := rest.NewRouter()
+	r := rest.NewRouter(app)
 	srv := &http.Server{
 		Addr:    ":9090",
 		Handler: r,

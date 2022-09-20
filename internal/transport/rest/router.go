@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/transport/rest/api"
 )
 
@@ -13,7 +14,7 @@ type Option struct {
 	Addr string
 }
 
-func NewRouter() http.Handler {
+func NewRouter(app *user.UserApplication) http.Handler {
 	router := chi.NewRouter()
 
 	router.Use(
@@ -27,7 +28,7 @@ func NewRouter() http.Handler {
 	router.Use(middleware.Heartbeat("/ping"))
 
 	{
-		u := api.NewUserController()
+		u := api.NewUserController(app)
 		router.Get("/api/user/{userID}", u.GetUserByID)
 	}
 

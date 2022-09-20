@@ -2,6 +2,7 @@ package context
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,6 +15,9 @@ type (
 	mergedContext struct {
 		left  context.Context
 		right context.Context
+		ch    chan struct{}
+		done  int32
+		err   error
 	}
 )
 
@@ -53,5 +57,66 @@ func KillContextsImmediately() {
 
 // MergeContext TODO: 合并context.Context，解决chi的问题
 func MergeContext(c1, c2 context.Context) context.Context {
+	mc := &mergedContext{
+		left:  c1,
+		right: c2,
+		ch:    make(chan struct{}),
+	}
+	go mc.wait()
+	return mc
+}
+
+func (mc *mergedContext) Value(key any) any {
+	val := mc.left.Value(key)
+	if val == nil {
+		return mc.right.Value(key)
+	}
+	return val
+}
+
+func (mc *mergedContext) Deadline() (time.Time, bool) {
+	t1, o1 := mc.left.Deadline()
+	t2, o2 := mc.right.Deadline()
+
+	switch {
+	case !o1 && !o2: // no set
+		return t1, o1
+
+	case o1 && o2:
+		if t1.Before(t2) {
+			return t1, true
+		}
+		return t2, true
+
+	default:
+		if o1 {
+			return t1, o1
+		}
+		return t2, o2
+	}
+}
+
+func (mc *mergedContext) Done() <-chan struct{} {
+	return mc.ch
+}
+
+func (mc *mergedContext) wait() {
+	defer func() {
+		if atomic.CompareAndSwapInt32(&mc.done, 0, 1) {
+			close(mc.ch)
+		}
+	}()
+	select {
+	case <-mc.left.Done():
+		mc.err = mc.left.Err()
+	case <-mc.right.Done():
+		mc.err = mc.right.Err()
+	}
+}
+
+func (mc *mergedContext) Err() error {
+	if atomic.LoadInt32(&mc.done) == 1 {
+		return mc.err
+	}
 	return nil
 }

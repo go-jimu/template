@@ -6,21 +6,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/template/internal/application/user"
-	"github.com/go-jimu/template/internal/pkg/context"
 )
 
 type UserController struct {
 	app *user.UserApplication
 }
 
-func NewUserController() *UserController {
-	return &UserController{}
+func NewUserController(app *user.UserApplication) *UserController {
+	return &UserController{app: app}
 }
 
 func (uc *UserController) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "userID")
-	ctx, _ := context.GenDefaultContext()
-	user, err := uc.app.Get(ctx, userID)
+	user, err := uc.app.Get(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
