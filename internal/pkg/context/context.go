@@ -121,12 +121,12 @@ func (mc *mergedContext) wait() {
 	case <-mc.right.Done():
 		mc.err = mc.right.Err()
 	case <-mc.cancelChan:
-		mc.err = context.Canceled
+		mc.err = context.Canceled // 当cancel提前于父context，err为空，不会覆盖；当cancel晚于父context，本函数已经退出，不会覆盖
 	}
 }
 
 func (mc *mergedContext) Err() error {
-	if atomic.LoadInt32(&mc.done) == 1 {
+	if atomic.LoadInt32(&mc.done) == 1 { // function结束顺序为 wait -> Done -> Err，因此返回结果是可信的
 		return mc.err
 	}
 	return nil
