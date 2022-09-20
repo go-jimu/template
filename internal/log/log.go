@@ -1,8 +1,10 @@
 package log
 
 import (
+	"context"
 	"os"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jimu/components/logger"
 )
 
@@ -24,9 +26,12 @@ var (
 	log logger.Logger
 )
 
-func NewLogger(opt Option) logger.Logger {
+func NewLog(opt Option) logger.Logger {
 	log = logger.NewStdLogger(os.Stdout)
-	log = logger.With(log, "caller", Caller())
+	log = logger.With(log,
+		"caller", Caller(),
+		"request-id", Carry(middleware.RequestIDKey),
+	)
 	log = logger.NewHelper(log,
 		logger.WithLevel(levelDescriptions[opt.Level]),
 		logger.WithMessageKey(opt.MessageKey),
@@ -36,4 +41,13 @@ func NewLogger(opt Option) logger.Logger {
 
 func Caller() logger.Valuer {
 	return logger.Caller(5)
+}
+
+func Carry(key any) logger.Valuer {
+	return func(ctx context.Context) interface{} {
+		if ctx == nil {
+			return ""
+		}
+		return ctx.Value(key)
+	}
 }

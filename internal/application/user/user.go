@@ -18,7 +18,7 @@ type Commands struct {
 	ChangePassword *CommandChangePasswordHandler
 }
 
-type userApplication struct {
+type UserApplication struct {
 	log      *logger.Helper
 	repo     user.UserRepository
 	Queries  *Queries
@@ -26,8 +26,8 @@ type userApplication struct {
 	handlers []mediator.EventHandler
 }
 
-func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserRepository, read QueryUserRepository) *userApplication {
-	app := &userApplication{
+func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserRepository, read QueryUserRepository) *UserApplication {
+	app := &UserApplication{
 		log:  logger.NewHelper(log),
 		repo: repo,
 		Queries: &Queries{
@@ -46,7 +46,7 @@ func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserR
 	return app
 }
 
-func (app *userApplication) Get(ctx context.Context, uid string) (*dto.User, error) {
+func (app *UserApplication) Get(ctx context.Context, uid string) (*dto.User, error) {
 	log := app.log.WithContext(ctx)
 	log.Infof("start to get user by id: %s", uid)
 

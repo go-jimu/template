@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,14 +15,15 @@ import (
 	"github.com/go-jimu/template/internal/infrastructure/persistence"
 	"github.com/go-jimu/template/internal/log"
 	"github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/transport/rest"
 )
 
 func main() {
-	log := log.NewLogger(log.Option{Level: "info", MessageKey: "msg"}).(*logger.Helper)
+	log := log.NewLog(log.Option{Level: "info", MessageKey: "msg"}).(*logger.Helper)
 	log.Infof("inited global logger")
 
 	// pkg layer
-	context.New(context.Option{Timeout: 5 * time.Second, ShutdownTimeout: 30 * time.Second})
+	context.New(context.Option{Timeout: 3 * time.Second, ShutdownTimeout: 5 * time.Second})
 
 	// domain layer
 	eb := mediator.NewInMemMediator(10)
@@ -31,10 +33,19 @@ func main() {
 	repos := persistence.NewRepositories(persistence.Option{Host: "localhost", Port: 3306, User: "root", Password: "root", Database: "jimu"}, log)
 
 	// application layer
-	_ = user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
+	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
+
+	// transport layer
+	srv := rest.NewServer(rest.Option{Addr: ":9090"}, log, app)
 
 	// graceful shutdown
 	errChan := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			errChan <- err
+		}
+	}()
+
 	go func() {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
@@ -48,7 +59,7 @@ func main() {
 	log.Warnf("start to shutdown server: %s", err.Error())
 	ctx, cancel := context.GenShutdownContext()
 	defer cancel()
-	log.Warnf("kill all available contexts in %s", (30 * time.Second).String())
+	log.Warnf("kill all available contexts in %s", (1 * time.Second).String())
 	<-ctx.Done()
 	context.KillContextsImmediately()
 	os.Exit(0)
