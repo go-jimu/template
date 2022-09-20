@@ -13,11 +13,13 @@ type (
 	}
 
 	mergedContext struct {
-		left  context.Context
-		right context.Context
-		ch    chan struct{}
-		done  int32
-		err   error
+		left       context.Context
+		right      context.Context
+		doneChan   chan struct{}
+		cancelChan chan struct{}
+		done       int32
+		canceled   int32
+		err        error
 	}
 )
 
@@ -56,14 +58,15 @@ func KillContextsImmediately() {
 }
 
 // MergeContext TODO: 合并context.Context，解决chi的问题
-func MergeContext(c1, c2 context.Context) context.Context {
+func MergeContext(c1, c2 context.Context) (context.Context, context.CancelFunc) {
 	mc := &mergedContext{
-		left:  c1,
-		right: c2,
-		ch:    make(chan struct{}),
+		left:       c1,
+		right:      c2,
+		doneChan:   make(chan struct{}),
+		cancelChan: make(chan struct{}),
 	}
 	go mc.wait()
-	return mc
+	return mc, mc.cancel
 }
 
 func (mc *mergedContext) Value(key any) any {
@@ -97,13 +100,19 @@ func (mc *mergedContext) Deadline() (time.Time, bool) {
 }
 
 func (mc *mergedContext) Done() <-chan struct{} {
-	return mc.ch
+	return mc.doneChan
+}
+
+func (mc *mergedContext) cancel() {
+	if atomic.CompareAndSwapInt32(&mc.canceled, 0, 1) {
+		close(mc.cancelChan)
+	}
 }
 
 func (mc *mergedContext) wait() {
 	defer func() {
 		if atomic.CompareAndSwapInt32(&mc.done, 0, 1) {
-			close(mc.ch)
+			close(mc.doneChan)
 		}
 	}()
 	select {
@@ -111,6 +120,8 @@ func (mc *mergedContext) wait() {
 		mc.err = mc.left.Err()
 	case <-mc.right.Done():
 		mc.err = mc.right.Err()
+	case <-mc.cancelChan:
+		mc.err = context.Canceled
 	}
 }
 
