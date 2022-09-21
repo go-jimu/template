@@ -9,8 +9,8 @@ import (
 )
 
 type Option struct {
-	Level      string
-	MessageKey string
+	Level      string `json:"level" toml:"level" yaml:"level"`
+	MessageKey string `json:"message_key" toml:"message_key" yaml:"message_key"`
 }
 
 var (

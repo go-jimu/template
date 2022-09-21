@@ -2,7 +2,6 @@ package rest
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -12,7 +11,7 @@ import (
 )
 
 type Option struct {
-	Addr string
+	Addr string `json:"addr" yaml:"addr" toml:"addr"`
 }
 
 func NewServer(opt Option, log logger.Logger, app *user.UserApplication) *http.Server {
@@ -24,7 +23,6 @@ func NewServer(opt Option, log logger.Logger, app *user.UserApplication) *http.S
 		middleware.RealIP,
 		RequestLog(log),
 		middleware.Recoverer,
-		middleware.Timeout(3*time.Second),
 	)
 	router.Use(middleware.Heartbeat("/ping"))
 

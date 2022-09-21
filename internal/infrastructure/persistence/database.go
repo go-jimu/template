@@ -13,12 +13,12 @@ import (
 
 type (
 	Option struct {
-		Host         string
-		Port         int
-		User         string
-		Password     string
-		Database     string
-		MaxOpenConns int
+		Host         string `json:"host" yaml:"host" toml:"host"`
+		Port         int    `json:"port" yaml:"port" toml:"port"`
+		User         string `json:"user" yaml:"user" toml:"user"`
+		Password     string `json:"password" yaml:"password" toml:"password"`
+		Database     string `json:"database" yaml:"database" toml:"database"`
+		MaxOpenConns int    `json:"max_open_conns" yaml:"max_open_conns" toml:"max_open_conns"`
 	}
 
 	Repositories struct {

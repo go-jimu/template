@@ -8,8 +8,8 @@ import (
 
 type (
 	Option struct {
-		Timeout         time.Duration
-		ShutdownTimeout time.Duration
+		Timeout         string `json:"timeout" yaml:"timeout" toml:"timeout"`
+		ShutdownTimeout string `json:"shutdown_timeout" yaml:"shutdown_timeout" toml:"shutdown_timeout"`
 	}
 
 	mergedContext struct {
@@ -32,8 +32,17 @@ var (
 
 func New(opt Option) {
 	parent, cancel = context.WithCancel(context.Background())
-	defaultTimeout = opt.Timeout
-	shutdownTimeout = opt.ShutdownTimeout
+	duration, err := time.ParseDuration(opt.Timeout)
+	if err != nil {
+		panic(err)
+	}
+	defaultTimeout = duration
+
+	duration, err = time.ParseDuration(opt.ShutdownTimeout)
+	if err != nil {
+		panic(err)
+	}
+	shutdownTimeout = duration
 }
 
 func GenDefaultContext() (context.Context, context.CancelFunc) {
@@ -57,7 +66,7 @@ func KillContextsImmediately() {
 	cancel()
 }
 
-// MergeContext TODO: 合并context.Context，解决chi的问题
+// MergeContext
 func MergeContext(c1, c2 context.Context) (context.Context, context.CancelFunc) {
 	mc := &mergedContext{
 		left:       c1,

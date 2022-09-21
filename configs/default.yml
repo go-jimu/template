@@ -1,0 +1,15 @@
+logger:
+  level: info
+  message_key: msg
+context:
+  timeout: 5s
+  shutdown_timeout: 15s
+mysql:
+  host: localhost
+  port: 3306
+  user: root
+  password: wosai
+  database: example
+  max_open_conns: 5
+http-server:
+  addr: ":9090"

@@ -6,37 +6,58 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/eventbus"
 	"github.com/go-jimu/template/internal/infrastructure/persistence"
-	"github.com/go-jimu/template/internal/log"
 	"github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/pkg/log"
+	"github.com/go-jimu/template/internal/pkg/option"
 	"github.com/go-jimu/template/internal/transport/rest"
 )
 
 func main() {
-	log := log.NewLog(log.Option{Level: "info", MessageKey: "msg"}).(*logger.Helper)
-	log.Infof("inited global logger")
+	conf := option.Load()
+
+	loggerOpt := new(log.Option)
+	if err := conf.Value("logger").Scan(loggerOpt); err != nil {
+		panic(err)
+	}
+	log := log.NewLog(*loggerOpt).(*logger.Helper)
+	log.Infof("init global logger, option=%v", *loggerOpt)
 
 	// pkg layer
-	context.New(context.Option{Timeout: 3 * time.Second, ShutdownTimeout: 5 * time.Second})
+	ctxOpt := new(context.Option)
+	if err := conf.Value("context").Scan(ctxOpt); err != nil {
+		panic(err)
+	}
+	context.New(*ctxOpt)
+	log.Infof("init context, option=%v", *ctxOpt)
 
 	// domain layer
 	eb := mediator.NewInMemMediator(10)
 	eventbus.Set(eb)
 
 	// infra layer
-	repos := persistence.NewRepositories(persistence.Option{Host: "localhost", Port: 3306, User: "root", Password: "root", Database: "jimu"}, log)
+	dbOpt := new(persistence.Option)
+	if err := conf.Value("mysql").Scan(dbOpt); err != nil {
+		panic(err)
+	}
+	repos := persistence.NewRepositories(*dbOpt, log)
+	log.Infof("init infra layer, option=%v", *dbOpt)
 
 	// application layer
 	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
 
 	// transport layer
-	srv := rest.NewServer(rest.Option{Addr: ":9090"}, log, app)
+	httpOpt := new(rest.Option)
+	if err := conf.Value("http-server").Scan(httpOpt); err != nil {
+		panic(err)
+	}
+	srv := rest.NewServer(*httpOpt, log, app)
+	log.Infof("init transport layer, option=%v", *httpOpt)
 
 	// graceful shutdown
 	errChan := make(chan error, 1)
@@ -51,16 +72,24 @@ func main() {
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 		sig := <-sigs
 		err := fmt.Errorf("quit signal: %s", sig.String())
-		log.Warnf("caught quit signal, try to shutdown service in 5 seconds: %s", sig.String())
+
+		log.Warnf("caught quit signal, try to shutdown server in %s: %s", ctxOpt.Timeout, sig.String())
+		ctx, cancel := context.GenDefaultContext()
+		defer cancel()
+		if anotherErr := srv.Shutdown(ctx); anotherErr != nil {
+			err = fmt.Errorf("%w | failed to shutdown http server: %s", err, anotherErr.Error())
+		}
 		errChan <- err
 	}()
 
 	err := <-errChan
-	log.Warnf("start to shutdown server: %s", err.Error())
+	log.Warnf("start to shutdown server, %s", err.Error())
+
 	ctx, cancel := context.GenShutdownContext()
 	defer cancel()
-	log.Warnf("kill all available contexts in %s", (1 * time.Second).String())
+	log.Warnf("kill all available contexts in %s", ctxOpt.ShutdownTimeout)
 	<-ctx.Done()
 	context.KillContextsImmediately()
+	log.Infof("bye")
 	os.Exit(0)
 }
