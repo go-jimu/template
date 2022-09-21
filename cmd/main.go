@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -63,33 +62,28 @@ func main() {
 	errChan := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Errorf("an unknown error occurred in http server: %s", err.Error())
 			errChan <- err
 		}
 	}()
 
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-		sig := <-sigs
-		err := fmt.Errorf("quit signal: %s", sig.String())
+	ctx, stop := signal.NotifyContext(context.RootContext(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	defer stop()
 
-		log.Warnf("caught quit signal, try to shutdown server in %s: %s", ctxOpt.Timeout, sig.String())
-		ctx, cancel := context.GenDefaultContext()
-		defer cancel()
-		if anotherErr := srv.Shutdown(ctx); anotherErr != nil {
-			err = fmt.Errorf("%w | failed to shutdown http server: %s", err, anotherErr.Error())
-		}
-		errChan <- err
-	}()
+	select {
+	case <-ctx.Done():
+	case <-errChan:
+	}
 
-	err := <-errChan
-	log.Warnf("start to shutdown server, %s", err.Error())
+	log.Warnf("caught quit signal, try to shutdown http server")
+	srvCtx, srvCancel := context.GenDefaultContext()
+	defer srvCancel()
+	if err := srv.Shutdown(srvCtx); err != nil {
+		log.Errorf("failed to shutdown http server: %s", err.Error())
+	}
 
-	ctx, cancel := context.GenShutdownContext()
-	defer cancel()
 	log.Warnf("kill all available contexts in %s", ctxOpt.ShutdownTimeout)
-	<-ctx.Done()
-	context.KillContextsImmediately()
+	context.KillContextAfterTimeout()
 	log.Infof("bye")
 	os.Exit(0)
 }

@@ -45,6 +45,10 @@ func New(opt Option) {
 	shutdownTimeout = duration
 }
 
+func RootContext() context.Context {
+	return parent
+}
+
 func GenDefaultContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, defaultTimeout)
 }
@@ -62,8 +66,8 @@ func KillContextsAfter(t time.Duration) {
 	cancel()
 }
 
-func KillContextsImmediately() {
-	cancel()
+func KillContextAfterTimeout() {
+	KillContextsAfter(shutdownTimeout)
 }
 
 // MergeContext
