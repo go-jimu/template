@@ -1,7 +1,6 @@
 package option
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -63,7 +62,6 @@ func searchConfigInDir(dir string) []config.Source {
 
 		suffix := getConfigFileSuffix()
 		if strings.HasSuffix(nonExt, suffix) {
-			fmt.Println("found extend config", path)
 			extends = append(extends, file.NewSource(path))
 		}
 		return nil

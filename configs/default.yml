@@ -11,5 +11,6 @@ mysql:
   password: wosai
   database: example
   max_open_conns: 5
+  max_idle_time: 60s
 http-server:
   addr: ":9090"

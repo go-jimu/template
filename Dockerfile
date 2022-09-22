@@ -2,7 +2,7 @@ FROM golang:1.18-bullseye as builder
 WORKDIR /go/src
 COPY . /go/src/
 RUN set -e \
-    && export GOPROXY=https://goproxy.cn \
+    && export GOPROXY=https://goproxy.cn,direct \
     && go mod download \
     && go build -o template cmd/main.go
 

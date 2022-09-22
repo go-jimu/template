@@ -19,6 +19,7 @@ type (
 		Password     string `json:"password" yaml:"password" toml:"password"`
 		Database     string `json:"database" yaml:"database" toml:"database"`
 		MaxOpenConns int    `json:"max_open_conns" yaml:"max_open_conns" toml:"max_open_conns"`
+		MaxIdleTime  string `json:"max_idle_time" yaml:"max_idle_time" toml:"max_idle_time"`
 	}
 
 	Repositories struct {
@@ -34,7 +35,11 @@ func NewRepositories(opt Option, log logger.Logger) *Repositories {
 	}
 
 	db.SetMaxOpenConns(opt.MaxOpenConns)
-	db.SetConnMaxIdleTime(60 * time.Second)
+	duration, err := time.ParseDuration(opt.MaxIdleTime)
+	if err != nil {
+		panic(err)
+	}
+	db.SetConnMaxIdleTime(duration)
 
 	repos := &Repositories{
 		User:      newUserRepository(db, log),
