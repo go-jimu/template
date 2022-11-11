@@ -3,7 +3,6 @@ package persistence
 import (
 	"context"
 
-	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/application/dto"
 	uapp "github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/domain/user"
@@ -15,19 +14,15 @@ import (
 
 type (
 	userRepository struct {
-		log *logger.Helper
-		db  *sqlx.DB
+		db *sqlx.DB
 	}
 	queryUserRepository struct {
-		log *logger.Helper
-		db  *sqlx.DB
+		db *sqlx.DB
 	}
 )
 
-func newUserRepository(db *sqlx.DB, log logger.Logger) user.UserRepository {
-	return &userRepository{
-		db:  db,
-		log: logger.NewHelper(log)}
+func newUserRepository(db *sqlx.DB) user.UserRepository {
+	return &userRepository{db: db}
 }
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*user.User, error) {
@@ -64,11 +59,8 @@ func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
 	return nil
 }
 
-func newQueryUserRepository(db *sqlx.DB, log logger.Logger) uapp.QueryUserRepository {
-	return &queryUserRepository{
-		db:  db,
-		log: logger.NewHelper(log),
-	}
+func newQueryUserRepository(db *sqlx.DB) uapp.QueryUserRepository {
+	return &queryUserRepository{db: db}
 }
 
 func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) (int, error) {

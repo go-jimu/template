@@ -44,7 +44,7 @@ func main() {
 	if err := conf.Value("mysql").Scan(dbOpt); err != nil {
 		panic(err)
 	}
-	repos := persistence.NewRepositories(*dbOpt, log)
+	repos := persistence.NewRepositories(*dbOpt)
 	log.Infof("init infra layer, option=%v", *dbOpt)
 
 	// application layer

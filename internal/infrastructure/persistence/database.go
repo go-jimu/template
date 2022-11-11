@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-jimu/components/logger"
 	uapp "github.com/go-jimu/template/internal/application/user"
 	"github.com/go-jimu/template/internal/domain/user"
 	_ "github.com/go-sql-driver/mysql"
@@ -28,7 +27,7 @@ type (
 	}
 )
 
-func NewRepositories(opt Option, log logger.Logger) *Repositories {
+func NewRepositories(opt Option) *Repositories {
 	db, err := sqlx.Connect("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
 	if err != nil {
 		panic(err)
@@ -42,8 +41,8 @@ func NewRepositories(opt Option, log logger.Logger) *Repositories {
 	db.SetConnMaxIdleTime(duration)
 
 	repos := &Repositories{
-		User:      newUserRepository(db, log),
-		QueryUser: newQueryUserRepository(db, log),
+		User:      newUserRepository(db),
+		QueryUser: newQueryUserRepository(db),
 	}
 	return repos
 }
