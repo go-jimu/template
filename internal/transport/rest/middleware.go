@@ -23,7 +23,7 @@ func newLogEntry(log logger.Logger, r *http.Request) middleware.LogEntry {
 
 func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
 	log := le.log.WithContext(le.req.Context())
-	log.Info("msg", "request complete",
+	log.Info("request complete",
 		"request_method", le.req.Method,
 		"request_path", le.req.URL.Path,
 		"request_query", le.req.URL.RawQuery,
@@ -37,7 +37,7 @@ func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Du
 
 func (le *logEntry) Panic(v interface{}, stack []byte) {
 	log := le.log.WithContext(le.req.Context())
-	log.Error("msg", "broken request",
+	log.Error("broken request",
 		"panic", v,
 		"stack", string(stack),
 	)
