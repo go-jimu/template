@@ -1,5 +1,5 @@
-.PHONY: test
-test: 
+.PHONY: unittest
+unittest: 
 	@go test -race -covermode=atomic -v -coverprofile=coverage.txt $(extend) ./...;
 	@for dir in `find . -type f -name "go.mod" -exec dirname {} \;`; do \
 		if [ $$dir != "." ]; then \
