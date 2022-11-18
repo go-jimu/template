@@ -21,7 +21,7 @@ func Default() mediator.Mediator {
 	return eventbus
 }
 
-func Set(ev mediator.Mediator) {
+func SetDefault(ev mediator.Mediator) {
 	if ev == nil {
 		panic("bad EventBus")
 	}

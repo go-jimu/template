@@ -37,7 +37,7 @@ func main() {
 
 	// eventbus layer
 	eb := mediator.NewInMemMediator(10)
-	eventbus.Set(eb)
+	eventbus.SetDefault(eb)
 
 	// infra layer
 	dbOpt := new(persistence.Option)
