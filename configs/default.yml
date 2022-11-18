@@ -8,7 +8,7 @@ mysql:
   host: localhost
   port: 3306
   user: root
-  password: wosai
+  password: admin123
   database: example
   max_open_conns: 5
   max_idle_time: 60s
