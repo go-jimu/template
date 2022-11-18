@@ -5,7 +5,7 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-func AssembleDomainUser(entity *domain.User) (*User, error) {
+func assembleDomainUser(entity *domain.User) (*User, error) {
 	du := new(User)
 	if err := copier.Copy(du, entity); err != nil {
 		return nil, err

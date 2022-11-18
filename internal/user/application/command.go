@@ -9,18 +9,16 @@ import (
 
 type CommandChangePasswordHandler struct {
 	repo domain.Repository
-	log  *logger.Helper
 }
 
-func NewCommandChangePasswordHandler(log logger.Logger, repo domain.Repository) *CommandChangePasswordHandler {
+func NewCommandChangePasswordHandler(repo domain.Repository) *CommandChangePasswordHandler {
 	return &CommandChangePasswordHandler{
-		log:  logger.NewHelper(log),
 		repo: repo,
 	}
 }
 
 func (h *CommandChangePasswordHandler) Handle(ctx context.Context, command *CommandChangePassword) error {
-	log := h.log.WithContext(ctx)
+	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
 
 	log.Infof("start to change user password: %s", command.ID)
 	entity, err := h.repo.Get(ctx, command.ID)

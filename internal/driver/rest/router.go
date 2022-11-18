@@ -48,6 +48,7 @@ func NewControllerGroup(opt Option, log logger.Logger, cgs ...Controller) Contro
 		InjectContext,
 		middleware.RequestID,
 		middleware.RealIP,
+		CarryLog(log),
 		RequestLog(log),
 		middleware.Recoverer,
 	)

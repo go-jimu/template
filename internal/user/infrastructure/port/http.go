@@ -9,29 +9,29 @@ import (
 	"github.com/go-jimu/template/internal/user/application"
 )
 
-type Controller struct {
+type controller struct {
 	app *application.Application
 }
 
 func NewController(app *application.Application) rest.Controller {
-	return &Controller{app: app}
+	return &controller{app: app}
 }
 
-func (uc *Controller) Slug() string {
+func (uc *controller) Slug() string {
 	return "/api/v1/user"
 }
 
-func (un *Controller) Middlewares() chi.Middlewares {
+func (un *controller) Middlewares() chi.Middlewares {
 	return chi.Middlewares{}
 }
 
-func (uc *Controller) APIs() []rest.API {
+func (uc *controller) APIs() []rest.API {
 	return []rest.API{
 		{Method: http.MethodGet, Pattern: "/{userID}", Func: uc.GetUserByID},
 	}
 }
 
-func (uc *Controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
+func (uc *controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "userID")
 	user, err := uc.app.Get(r.Context(), userID)
 	if err != nil {

@@ -17,22 +17,20 @@ type Commands struct {
 }
 
 type Application struct {
-	log      *logger.Helper
 	repo     domain.Repository
 	Queries  *Queries
 	Commands *Commands
 	handlers []mediator.EventHandler
 }
 
-func NewApplication(log logger.Logger, ev mediator.Mediator, repo domain.Repository, read QueryRepository) *Application {
+func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepository) *Application {
 	app := &Application{
-		log:  logger.NewHelper(log),
 		repo: repo,
 		Queries: &Queries{
-			FindUserList: NewFindUserListHandler(log, read),
+			FindUserList: NewFindUserListHandler(read),
 		},
 		Commands: &Commands{
-			ChangePassword: NewCommandChangePasswordHandler(log, repo),
+			ChangePassword: NewCommandChangePasswordHandler(repo),
 		},
 		handlers: []mediator.EventHandler{
 			NewUserCreatedHandler(),
@@ -45,7 +43,7 @@ func NewApplication(log logger.Logger, ev mediator.Mediator, repo domain.Reposit
 }
 
 func (app *Application) Get(ctx context.Context, uid string) (*User, error) {
-	log := app.log.WithContext(ctx)
+	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
 	log.Infof("start to get user by id: %s", uid)
 
 	entity, err := app.repo.Get(ctx, uid)
@@ -57,6 +55,6 @@ func (app *Application) Get(ctx context.Context, uid string) (*User, error) {
 		log.Errorf("bad user entity: %s", err.Error())
 		return nil, err
 	}
-	dto, _ := AssembleDomainUser(entity)
+	dto, _ := assembleDomainUser(entity)
 	return dto, nil
 }

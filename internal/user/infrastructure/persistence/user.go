@@ -29,7 +29,7 @@ func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, er
 	if err != nil {
 		return nil, err
 	}
-	entity, err := ConvertDoUser(do)
+	entity, err := convertDoUser(do)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, er
 }
 
 func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
-	data, err := ConvertUserToDO(user)
+	data, err := convertUserToDO(user)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (q *queryUserRepository) FindUserList(ctx context.Context, name string, lim
 	}
 	dtos := make([]*application.User, len(ret))
 	for index, u := range ret {
-		d, err := ConvertDoUserToDTO(u)
+		d, err := convertDoUserToDTO(u)
 		if err != nil {
 			return nil, err
 		}

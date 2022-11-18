@@ -13,20 +13,18 @@ type (
 	}
 
 	FindUserListHandler struct {
-		log       *logger.Helper
 		readModel QueryRepository
 	}
 )
 
-func NewFindUserListHandler(log logger.Logger, read QueryRepository) *FindUserListHandler {
+func NewFindUserListHandler(read QueryRepository) *FindUserListHandler {
 	return &FindUserListHandler{
-		log:       logger.NewHelper(log),
 		readModel: read,
 	}
 }
 
 func (h *FindUserListHandler) Handle(ctx context.Context, req *FindUserListRequest) (*FindUserListResponse, error) {
-	log := h.log.WithContext(ctx)
+	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
 
 	log.Infof("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
 	if req.PageSize > 100 {

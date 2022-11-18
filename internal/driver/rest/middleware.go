@@ -43,6 +43,15 @@ func (le *logEntry) Panic(v interface{}, stack []byte) {
 	)
 }
 
+func CarryLog(log logger.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(logger.InContext(r.Context(), log))
+		}
+		return http.HandlerFunc(fn)
+	}
+}
+
 func RequestLog(log logger.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {

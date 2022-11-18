@@ -1,7 +1,6 @@
 package user
 
 import (
-	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/driver/rest"
 	"github.com/go-jimu/template/internal/user/application"
@@ -10,10 +9,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func Init(logger logger.Logger, m mediator.Mediator, db *sqlx.DB, g rest.ControllerGroup) {
+func Init(m mediator.Mediator, db *sqlx.DB, g rest.ControllerGroup) {
 	repo := persistence.NewRepository(db)
 	read := persistence.NewQueryRepository(db)
-	app := application.NewApplication(logger, m, repo, read)
+	app := application.NewApplication(m, repo, read)
 	controller := port.NewController(app)
 	g.With(controller)
 }

@@ -56,7 +56,7 @@ func main() {
 	log.Infof("init transport layer, option=%v", *httpOpt)
 
 	// each business layer
-	user.Init(log, eb, conn, cg)
+	user.Init(eb, conn, cg)
 
 	// graceful shutdown
 	srv := cg.Server()
