@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/application/user"
+	"github.com/go-jimu/template/internal/driver/persistence"
+	"github.com/go-jimu/template/internal/driver/rest"
 	"github.com/go-jimu/template/internal/eventbus"
-	"github.com/go-jimu/template/internal/infrastructure/persistence"
 	"github.com/go-jimu/template/internal/pkg/context"
 	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
-	"github.com/go-jimu/template/internal/transport/rest"
+	"github.com/go-jimu/template/internal/user"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 	context.New(*ctxOpt)
 	log.Infof("init context, option=%v", *ctxOpt)
 
-	// domain layer
+	// eventbus layer
 	eb := mediator.NewInMemMediator(10)
 	eventbus.Set(eb)
 
@@ -44,21 +44,22 @@ func main() {
 	if err := conf.Value("mysql").Scan(dbOpt); err != nil {
 		panic(err)
 	}
-	repos := persistence.NewRepositories(*dbOpt)
+	conn := persistence.NewMySQLDriver(*dbOpt)
 	log.Infof("init infra layer, option=%v", *dbOpt)
-
-	// application layer
-	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
 
 	// transport layer
 	httpOpt := new(rest.Option)
 	if err := conf.Value("http-server").Scan(httpOpt); err != nil {
 		panic(err)
 	}
-	srv := rest.NewServer(*httpOpt, log, app)
+	cg := rest.NewControllerGroup(*httpOpt, log)
 	log.Infof("init transport layer, option=%v", *httpOpt)
 
+	// each business layer
+	user.Init(log, eb, conn, cg)
+
 	// graceful shutdown
+	srv := cg.Server()
 	errChan := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {

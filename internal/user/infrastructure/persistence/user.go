@@ -3,12 +3,9 @@ package persistence
 import (
 	"context"
 
-	"github.com/go-jimu/template/internal/application/dto"
-	uapp "github.com/go-jimu/template/internal/application/user"
-	"github.com/go-jimu/template/internal/domain/user"
 	"github.com/go-jimu/template/internal/eventbus"
-	"github.com/go-jimu/template/internal/infrastructure/converter"
-	"github.com/go-jimu/template/internal/infrastructure/do"
+	"github.com/go-jimu/template/internal/user/application"
+	"github.com/go-jimu/template/internal/user/domain"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -16,30 +13,31 @@ type (
 	userRepository struct {
 		db *sqlx.DB
 	}
+
 	queryUserRepository struct {
 		db *sqlx.DB
 	}
 )
 
-func newUserRepository(db *sqlx.DB) user.UserRepository {
+func NewRepository(db *sqlx.DB) domain.Repository {
 	return &userRepository{db: db}
 }
 
-func (ur *userRepository) Get(ctx context.Context, uid string) (*user.User, error) {
-	do := new(do.User)
+func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, error) {
+	do := new(User)
 	err := ur.db.GetContext(ctx, do, "select * from user where id=? and deleted=0 limit 1", uid)
 	if err != nil {
 		return nil, err
 	}
-	entity, err := converter.ConvertDoUser(do)
+	entity, err := ConvertDoUser(do)
 	if err != nil {
 		return nil, err
 	}
 	return entity, nil
 }
 
-func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
-	data, err := converter.ConvertUserToDO(user)
+func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
+	data, err := ConvertUserToDO(user)
 	if err != nil {
 		return err
 	}
@@ -59,7 +57,7 @@ func (ur *userRepository) Save(ctx context.Context, user *user.User) error {
 	return nil
 }
 
-func newQueryUserRepository(db *sqlx.DB) uapp.QueryUserRepository {
+func NewQueryRepository(db *sqlx.DB) application.QueryRepository {
 	return &queryUserRepository{db: db}
 }
 
@@ -72,15 +70,15 @@ func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) 
 	return ret[0], nil
 }
 
-func (q *queryUserRepository) FindUserList(ctx context.Context, name string, limit, offset int) ([]*dto.User, error) {
-	ret := make([]*do.User, 0)
+func (q *queryUserRepository) FindUserList(ctx context.Context, name string, limit, offset int) ([]*application.User, error) {
+	ret := make([]*User, 0)
 	err := q.db.SelectContext(ctx, &ret, "select * from user where name like ? and deleted=0 order by ctime limit ? offset ?", "%"+name+"%", limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	dtos := make([]*dto.User, len(ret))
+	dtos := make([]*application.User, len(ret))
 	for index, u := range ret {
-		d, err := converter.ConvertDoUserToDTO(u)
+		d, err := ConvertDoUserToDTO(u)
 		if err != nil {
 			return nil, err
 		}

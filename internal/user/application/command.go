@@ -1,27 +1,27 @@
-package user
+package application
 
 import (
 	"context"
 
 	"github.com/go-jimu/components/logger"
-	"github.com/go-jimu/template/internal/application/dto"
-	"github.com/go-jimu/template/internal/domain/user"
+	"github.com/go-jimu/template/internal/user/domain"
 )
 
 type CommandChangePasswordHandler struct {
-	repo user.UserRepository
+	repo domain.Repository
 	log  *logger.Helper
 }
 
-func NewCommandChangePasswordHandler(log logger.Logger, repo user.UserRepository) *CommandChangePasswordHandler {
+func NewCommandChangePasswordHandler(log logger.Logger, repo domain.Repository) *CommandChangePasswordHandler {
 	return &CommandChangePasswordHandler{
 		log:  logger.NewHelper(log),
 		repo: repo,
 	}
 }
 
-func (h *CommandChangePasswordHandler) Handle(ctx context.Context, command *dto.CommandChangePassword) error {
+func (h *CommandChangePasswordHandler) Handle(ctx context.Context, command *CommandChangePassword) error {
 	log := h.log.WithContext(ctx)
+
 	log.Infof("start to change user password: %s", command.ID)
 	entity, err := h.repo.Get(ctx, command.ID)
 	if err != nil {

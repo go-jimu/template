@@ -16,3 +16,7 @@ benchmark:
 	@for dir in `find . -type f -name "go.mod" -exec dirname {} \;`; do \
 		go test -bench=. -run=^Benchmark $$dir/...; \
 	done
+
+.PHONY: server
+server:
+	@go run cmd/main.go

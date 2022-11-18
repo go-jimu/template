@@ -1,13 +1,11 @@
-package user
+package application
 
 import (
 	"context"
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/application/assembler"
-	"github.com/go-jimu/template/internal/application/dto"
-	"github.com/go-jimu/template/internal/domain/user"
+	"github.com/go-jimu/template/internal/user/domain"
 )
 
 type Queries struct {
@@ -18,16 +16,16 @@ type Commands struct {
 	ChangePassword *CommandChangePasswordHandler
 }
 
-type UserApplication struct {
+type Application struct {
 	log      *logger.Helper
-	repo     user.UserRepository
+	repo     domain.Repository
 	Queries  *Queries
 	Commands *Commands
 	handlers []mediator.EventHandler
 }
 
-func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserRepository, read QueryUserRepository) *UserApplication {
-	app := &UserApplication{
+func NewApplication(log logger.Logger, ev mediator.Mediator, repo domain.Repository, read QueryRepository) *Application {
+	app := &Application{
 		log:  logger.NewHelper(log),
 		repo: repo,
 		Queries: &Queries{
@@ -46,7 +44,7 @@ func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserR
 	return app
 }
 
-func (app *UserApplication) Get(ctx context.Context, uid string) (*dto.User, error) {
+func (app *Application) Get(ctx context.Context, uid string) (*User, error) {
 	log := app.log.WithContext(ctx)
 	log.Infof("start to get user by id: %s", uid)
 
@@ -59,6 +57,6 @@ func (app *UserApplication) Get(ctx context.Context, uid string) (*dto.User, err
 		log.Errorf("bad user entity: %s", err.Error())
 		return nil, err
 	}
-	dto, _ := assembler.AssembleDomainUser(entity)
+	dto, _ := AssembleDomainUser(entity)
 	return dto, nil
 }
