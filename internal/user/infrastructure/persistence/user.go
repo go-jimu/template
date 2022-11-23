@@ -3,7 +3,7 @@ package persistence
 import (
 	"context"
 
-	"github.com/go-jimu/template/internal/eventbus"
+	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/user/application"
 	"github.com/go-jimu/template/internal/user/domain"
 	"github.com/jmoiron/sqlx"

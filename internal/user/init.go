@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func Init(m mediator.Mediator, db *sqlx.DB, g rest.ControllerGroup) {
+func Init(m mediator.Mediator, db *sqlx.DB, g rest.HTTPServer) {
 	repo := persistence.NewRepository(db)
 	read := persistence.NewQueryRepository(db)
 	app := application.NewApplication(m, repo, read)

@@ -27,10 +27,10 @@ func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Du
 		"request_method", le.req.Method,
 		"request_path", le.req.URL.Path,
 		"request_query", le.req.URL.RawQuery,
-		"user_agent", le.req.Header.Get("User-Agent"),
+		// "user_agent", le.req.Header.Get("User-Agent"),
 		"client_ip", le.req.RemoteAddr,
 		"response_status_code", status,
-		"response_bytes_length", bytes,
+		// "response_bytes_length", bytes,
 		"elapsed", elapsed.String(),
 	)
 }

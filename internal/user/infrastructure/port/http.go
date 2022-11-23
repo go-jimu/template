@@ -21,8 +21,8 @@ func (uc *controller) Slug() string {
 	return "/api/v1/user"
 }
 
-func (un *controller) Middlewares() chi.Middlewares {
-	return chi.Middlewares{}
+func (un *controller) Middlewares() []rest.Middleware {
+	return []rest.Middleware{}
 }
 
 func (uc *controller) APIs() []rest.API {
