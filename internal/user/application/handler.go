@@ -1,10 +1,10 @@
-package user
+package application
 
 import (
 	"context"
 
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/domain/user"
+	"github.com/go-jimu/template/internal/user/domain"
 )
 
 type UserCreatedHandler struct {
@@ -15,7 +15,7 @@ func NewUserCreatedHandler() *UserCreatedHandler {
 }
 
 func (s UserCreatedHandler) Listening() []mediator.EventKind {
-	return []mediator.EventKind{user.EKUserCreated}
+	return []mediator.EventKind{domain.EKUserCreated}
 }
 
 func (s UserCreatedHandler) Handle(ctx context.Context, ev mediator.Event) {

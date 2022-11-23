@@ -1,88 +1,60 @@
 package main
 
 import (
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/application/user"
-	"github.com/go-jimu/template/internal/eventbus"
-	"github.com/go-jimu/template/internal/infrastructure/persistence"
+	"github.com/go-jimu/template/internal/driver/persistence"
+	"github.com/go-jimu/template/internal/driver/rest"
 	"github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
-	"github.com/go-jimu/template/internal/transport/rest"
+	"github.com/go-jimu/template/internal/user"
 )
 
-func main() {
-	conf := option.Load()
+type Option struct {
+	Logger     log.Option         `json:"logger" toml:"logger" yaml:"logger"`
+	Context    context.Option     `json:"context" toml:"context" yaml:"context"`
+	MySQL      persistence.Option `json:"mysql" toml:"mysql" yaml:"mysql"`
+	HTTPServer rest.Option        `json:"http-server" toml:"http-server" yaml:"http-server"`
+}
 
-	loggerOpt := new(log.Option)
-	if err := conf.Value("logger").Scan(loggerOpt); err != nil {
+func main() {
+	opt := new(Option)
+	conf := option.Load()
+	if err := conf.Scan(opt); err != nil {
 		panic(err)
 	}
-	log := log.NewLog(*loggerOpt).(*logger.Helper)
-	log.Infof("init global logger, option=%v", *loggerOpt)
 
 	// pkg layer
-	ctxOpt := new(context.Option)
-	if err := conf.Value("context").Scan(ctxOpt); err != nil {
-		panic(err)
-	}
-	context.New(*ctxOpt)
-	log.Infof("init context, option=%v", *ctxOpt)
+	log := log.NewLog(opt.Logger).(*logger.Helper)
+	log.Info("loaded configurations", "option", *opt)
 
-	// domain layer
+	context.New(opt.Context)
+
+	// eventbus layer
 	eb := mediator.NewInMemMediator(10)
-	eventbus.Set(eb)
+	eventbus.SetDefault(eb)
 
-	// infra layer
-	dbOpt := new(persistence.Option)
-	if err := conf.Value("mysql").Scan(dbOpt); err != nil {
-		panic(err)
-	}
-	repos := persistence.NewRepositories(*dbOpt)
-	log.Infof("init infra layer, option=%v", *dbOpt)
+	// driver layer
+	conn := persistence.NewMySQLDriver(opt.MySQL)
+	cg := rest.NewHTTPServer(opt.HTTPServer, log)
 
-	// application layer
-	app := user.NewUserApplication(log, eb, repos.User, repos.QueryUser)
-
-	// transport layer
-	httpOpt := new(rest.Option)
-	if err := conf.Value("http-server").Scan(httpOpt); err != nil {
-		panic(err)
-	}
-	srv := rest.NewServer(*httpOpt, log, app)
-	log.Infof("init transport layer, option=%v", *httpOpt)
+	// each business layer
+	user.Init(eb, conn, cg)
 
 	// graceful shutdown
-	errChan := make(chan error, 1)
-	go func() {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Errorf("an unknown error occurred in http server: %s", err.Error())
-			errChan <- err
-		}
-	}()
-
 	ctx, stop := signal.NotifyContext(context.RootContext(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	select {
-	case <-ctx.Done():
-	case <-errChan:
+	if err := cg.Service(ctx); err != nil {
+		log.Error("failed to shutdown http server", "error", err.Error())
 	}
-
-	log.Warnf("caught quit signal, try to shutdown http server")
-	srvCtx, srvCancel := context.GenDefaultContext()
-	defer srvCancel()
-	if err := srv.Shutdown(srvCtx); err != nil {
-		log.Errorf("failed to shutdown http server: %s", err.Error())
-	}
-
-	log.Warnf("kill all available contexts in %s", ctxOpt.ShutdownTimeout)
+	log.Warnf("kill all available contexts in %s", opt.Context.ShutdownTimeout)
 	context.KillContextAfterTimeout()
 	log.Infof("bye")
 	os.Exit(0)

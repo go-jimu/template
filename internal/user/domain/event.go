@@ -1,4 +1,4 @@
-package user
+package domain
 
 import "github.com/go-jimu/components/mediator"
 

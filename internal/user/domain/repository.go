@@ -1,8 +1,8 @@
-package user
+package domain
 
 import "context"
 
-type UserRepository interface {
+type Repository interface {
 	Get(context.Context, string) (*User, error)
 	Save(context.Context, *User) error
 }

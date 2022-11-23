@@ -1,13 +1,11 @@
-package user
+package application
 
 import (
 	"context"
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/application/assembler"
-	"github.com/go-jimu/template/internal/application/dto"
-	"github.com/go-jimu/template/internal/domain/user"
+	"github.com/go-jimu/template/internal/user/domain"
 )
 
 type Queries struct {
@@ -18,23 +16,21 @@ type Commands struct {
 	ChangePassword *CommandChangePasswordHandler
 }
 
-type UserApplication struct {
-	log      *logger.Helper
-	repo     user.UserRepository
+type Application struct {
+	repo     domain.Repository
 	Queries  *Queries
 	Commands *Commands
 	handlers []mediator.EventHandler
 }
 
-func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserRepository, read QueryUserRepository) *UserApplication {
-	app := &UserApplication{
-		log:  logger.NewHelper(log),
+func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepository) *Application {
+	app := &Application{
 		repo: repo,
 		Queries: &Queries{
-			FindUserList: NewFindUserListHandler(log, read),
+			FindUserList: NewFindUserListHandler(read),
 		},
 		Commands: &Commands{
-			ChangePassword: NewCommandChangePasswordHandler(log, repo),
+			ChangePassword: NewCommandChangePasswordHandler(repo),
 		},
 		handlers: []mediator.EventHandler{
 			NewUserCreatedHandler(),
@@ -46,8 +42,8 @@ func NewUserApplication(log logger.Logger, ev mediator.Mediator, repo user.UserR
 	return app
 }
 
-func (app *UserApplication) Get(ctx context.Context, uid string) (*dto.User, error) {
-	log := app.log.WithContext(ctx)
+func (app *Application) Get(ctx context.Context, uid string) (*User, error) {
+	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
 	log.Infof("start to get user by id: %s", uid)
 
 	entity, err := app.repo.Get(ctx, uid)
@@ -59,6 +55,6 @@ func (app *UserApplication) Get(ctx context.Context, uid string) (*dto.User, err
 		log.Errorf("bad user entity: %s", err.Error())
 		return nil, err
 	}
-	dto, _ := assembler.AssembleDomainUser(entity)
+	dto, _ := assembleDomainUser(entity)
 	return dto, nil
 }
