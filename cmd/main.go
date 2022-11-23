@@ -32,7 +32,7 @@ func main() {
 
 	// pkg layer
 	log := log.NewLog(opt.Logger).(*logger.Helper)
-	log.Infof("loaded configurations, option=%v", *opt)
+	log.Info("loaded configurations", "option", *opt)
 
 	context.New(opt.Context)
 
@@ -52,7 +52,7 @@ func main() {
 	defer stop()
 
 	if err := cg.Service(ctx); err != nil {
-		log.Errorf("failed to shutdown http server: %s", err.Error())
+		log.Error("failed to shutdown http server", "error", err.Error())
 	}
 	log.Warnf("kill all available contexts in %s", opt.Context.ShutdownTimeout)
 	context.KillContextAfterTimeout()
