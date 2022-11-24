@@ -51,11 +51,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.RootContext(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
-	if err := cg.Service(ctx); err != nil {
+	if err := cg.Serve(ctx); err != nil {
 		log.Error("failed to shutdown http server", "error", err.Error())
 	}
 	log.Warnf("kill all available contexts in %s", opt.Context.ShutdownTimeout)
 	context.KillContextAfterTimeout()
-	log.Infof("bye")
+	log.Info("bye")
 	os.Exit(0)
 }

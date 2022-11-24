@@ -13,7 +13,9 @@ import (
 
 type (
 	Option struct {
-		Addr string `json:"addr" yaml:"addr" toml:"addr"`
+		Addr     string `json:"addr" yaml:"addr" toml:"addr"`
+		CertFile string `json:"cert_file" toml:"cert_file" yaml:"cert_file"`
+		KeyFile  string `json:"key_file" toml:"key_file" yaml:"key_file"`
 	}
 
 	API struct {
@@ -37,10 +39,10 @@ type (
 
 	HTTPServer interface {
 		With(Controller)
-		Service(context.Context) error
+		Serve(context.Context) error
 	}
 
-	group struct {
+	router struct {
 		router      *chi.Mux
 		option      Option
 		logger      *logger.Helper
@@ -57,7 +59,7 @@ const (
 var readTimeout = 3 * time.Second
 
 func NewHTTPServer(opt Option, log logger.Logger, cs ...Controller) HTTPServer {
-	g := &group{
+	g := &router{
 		router:      chi.NewRouter(),
 		option:      opt,
 		logger:      logger.NewHelper(log),
@@ -71,12 +73,12 @@ func NewHTTPServer(opt Option, log logger.Logger, cs ...Controller) HTTPServer {
 	return g
 }
 
-func (g *group) With(c Controller) {
+func (g *router) With(c Controller) {
 	g.controllers = append(g.controllers, c)
 }
 
 // chi: all middlewares must be defined before routes on a mux
-func (g *group) lazyLoad() {
+func (g *router) lazyLoad() {
 	// apply global middlewares
 	if g.root != nil {
 		for _, middleware := range g.root.Middlewares() {
@@ -112,7 +114,7 @@ func (g *group) lazyLoad() {
 	}
 }
 
-func (g *group) Service(ctx context.Context) error {
+func (g *router) Serve(ctx context.Context) error {
 	g.lazyLoad()
 
 	srv := &http.Server{
@@ -124,7 +126,13 @@ func (g *group) Service(ctx context.Context) error {
 	defer close(internalErr)
 
 	go func() {
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		var err error
+		if g.option.KeyFile != "" && g.option.CertFile != "" {
+			err = srv.ListenAndServeTLS(g.option.CertFile, g.option.KeyFile)
+		} else {
+			err = srv.ListenAndServe()
+		}
+		if !errors.Is(err, http.ErrServerClosed) {
 			internalErr <- err
 		}
 	}()
@@ -132,13 +140,13 @@ func (g *group) Service(ctx context.Context) error {
 	var err error
 	select {
 	case <-ctx.Done():
-		g.logger.Warnf("caught quit signal")
+		g.logger.Warn("caught quit signal")
 	case err = <-internalErr:
-		g.logger.Errorf("an unknown error occurred in http server: %s", err.Error())
+		g.logger.Error("an unknown error occurred in http server", "error", err.Error())
 	}
 
 	ctx, cancel := internalCtx.GenDefaultContext()
 	defer cancel()
-	g.logger.Warnf("try to shutdown http server")
+	g.logger.Warn("try to shutdown http server")
 	return srv.Shutdown(ctx)
 }
