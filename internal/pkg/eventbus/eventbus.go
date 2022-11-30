@@ -1,8 +1,6 @@
 package eventbus
 
 import (
-	"context"
-
 	"github.com/go-jimu/components/mediator"
 )
 
@@ -12,8 +10,8 @@ func Subscribe(eh mediator.EventHandler) {
 	eventbus.Subscribe(eh)
 }
 
-func Dispatch(ctx context.Context, event mediator.Event) {
-	eventbus.Dispatch(ctx, event)
+func Dispatch(event mediator.Event) {
+	eventbus.Dispatch(event)
 }
 
 // Default return the default event bus instance

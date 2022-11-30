@@ -53,7 +53,7 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 			return err
 		}
 	}
-	user.Events.Raise(ctx, eventbus.Default())
+	user.Events.Raise(eventbus.Default())
 	return nil
 }
 

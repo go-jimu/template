@@ -24,11 +24,11 @@ type (
 )
 
 var (
-	parent          context.Context
-	cancel          context.CancelFunc
 	defaultTimeout  = 30 * time.Second
 	shutdownTimeout = 20 * time.Second
 )
+
+var parent, cancel = context.WithCancel(context.Background())
 
 func New(opt Option) {
 	parent, cancel = context.WithCancel(context.Background())
