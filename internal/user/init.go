@@ -2,17 +2,17 @@ package user
 
 import (
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/driver/rest"
+	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/user/application"
-	"github.com/go-jimu/template/internal/user/infrastructure/persistence"
-	"github.com/go-jimu/template/internal/user/infrastructure/port"
+	"github.com/go-jimu/template/internal/user/application/transport"
+	"github.com/go-jimu/template/internal/user/infrastructure"
 	"github.com/jmoiron/sqlx"
 )
 
-func Init(m mediator.Mediator, db *sqlx.DB, g rest.HTTPServer) {
-	repo := persistence.NewRepository(db)
-	read := persistence.NewQueryRepository(db)
+func Init(m mediator.Mediator, db *sqlx.DB, g httpsrv.HTTPServer) {
+	repo := infrastructure.NewRepository(db)
+	read := infrastructure.NewQueryRepository(db)
 	app := application.NewApplication(m, repo, read)
-	controller := port.NewController(app)
+	controller := transport.NewController(app)
 	g.With(controller)
 }

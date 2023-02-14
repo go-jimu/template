@@ -1,4 +1,4 @@
-package persistence
+package infrastructure
 
 import (
 	"github.com/go-jimu/components/mediator"

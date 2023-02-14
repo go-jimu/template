@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/driver/persistence"
-	"github.com/go-jimu/template/internal/driver/rest"
+	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
+	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/pkg/context"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/log"
@@ -17,10 +17,10 @@ import (
 )
 
 type Option struct {
-	Logger     log.Option         `json:"logger" toml:"logger" yaml:"logger"`
-	Context    context.Option     `json:"context" toml:"context" yaml:"context"`
-	MySQL      persistence.Option `json:"mysql" toml:"mysql" yaml:"mysql"`
-	HTTPServer rest.Option        `json:"http-server" toml:"http-server" yaml:"http-server"`
+	Logger     log.Option     `json:"logger" toml:"logger" yaml:"logger"`
+	Context    context.Option `json:"context" toml:"context" yaml:"context"`
+	MySQL      mysql.Option   `json:"mysql" toml:"mysql" yaml:"mysql"`
+	HTTPServer httpsrv.Option `json:"http-server" toml:"http-server" yaml:"http-server"`
 }
 
 func main() {
@@ -41,8 +41,8 @@ func main() {
 	eventbus.SetDefault(eb)
 
 	// driver layer
-	conn := persistence.NewMySQLDriver(opt.MySQL)
-	cg := rest.NewHTTPServer(opt.HTTPServer, log)
+	conn := mysql.NewMySQLDriver(opt.MySQL)
+	cg := httpsrv.NewHTTPServer(opt.HTTPServer, log)
 
 	// each business layer
 	user.Init(eb, conn, cg)

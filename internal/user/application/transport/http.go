@@ -1,11 +1,11 @@
-package port
+package transport
 
 import (
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-jimu/template/internal/driver/rest"
+	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/user/application"
 )
 
@@ -13,7 +13,7 @@ type controller struct {
 	app *application.Application
 }
 
-func NewController(app *application.Application) rest.Controller {
+func NewController(app *application.Application) httpsrv.Controller {
 	return &controller{app: app}
 }
 
@@ -21,12 +21,12 @@ func (uc *controller) Slug() string {
 	return "/api/v1/user"
 }
 
-func (un *controller) Middlewares() []rest.Middleware {
-	return []rest.Middleware{}
+func (un *controller) Middlewares() []httpsrv.Middleware {
+	return []httpsrv.Middleware{}
 }
 
-func (uc *controller) APIs() []rest.API {
-	return []rest.API{
+func (uc *controller) APIs() []httpsrv.API {
+	return []httpsrv.API{
 		{Method: http.MethodGet, Pattern: "/{userID}", Func: uc.GetUserByID},
 	}
 }

@@ -1,4 +1,4 @@
-package rest
+package httpsrv
 
 import (
 	"context"
@@ -52,7 +52,7 @@ type (
 )
 
 const (
-	ScopeController MiddlewareScope = iota // controler 层面
+	ScopeController MiddlewareScope = iota // controller 层面
 	ScopeGlobal                            // 全局中间件
 )
 
