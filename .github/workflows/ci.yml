@@ -28,7 +28,7 @@ jobs:
         go-version: ${{matrix.go-version}}
     - name: Run TestCases
       run: make unittest
-    - name: Upload code coverage report
+    - name: Save code coverage result
       if: ${{matrix.go-version == '1.20.x' }}
       uses: actions/upload-artifact@v3
       with:
@@ -36,6 +36,25 @@ jobs:
         path: coverage.txt
     - name: Run Benchmark TestCases
       run: make benchmark
+
+  codecov:
+    name: Upload Code Coverage Report
+    runs-on: ubuntu-latest
+    needs: unittest
+    steps:
+    - uses: actions/checkout@master
+    - name: Download code coverage report
+      uses: actions/download-artifact@v3
+      with:
+        name: code-coverage-report
+    - uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+        files: coverage.txt # optional
+        flags: unittests # optional
+        name: codecov-umbrella # optional
+        fail_ci_if_error: true # optional (default = false)
+        verbose: true # optional (default = false)
 
   docker:
     name: Build And Publish Docker Image
