@@ -25,11 +25,11 @@ jobs:
     - uses: actions/setup-go@v4
       name: Set up Go 1.x
       with:
-        go-version: ${{matttrix.go-version}}
+        go-version: ${{matrix.go-version}}
     - name: Run TestCases
       run: make unittest
     - name: Upload code coverage report
-      if: ${{matttrix.go-version == '1.20.x' }}
+      if: ${{matrix.go-version == '1.20.x' }}
       uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
