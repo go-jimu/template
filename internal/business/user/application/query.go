@@ -23,10 +23,10 @@ func NewFindUserListHandler(read QueryRepository) *FindUserListHandler {
 	}
 }
 
-func (h *FindUserListHandler) Handle(ctx context.Context, req *FindUserListRequest) (*FindUserListResponse, error) {
-	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
+func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req *FindUserListRequest) (*FindUserListResponse, error) {
+	helper := logger.NewHelper(log).WithContext(ctx)
 
-	log.Infof("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
+	helper.Info("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
 	if req.PageSize > 100 {
 		req.PageSize = 100
 	}
@@ -36,12 +36,12 @@ func (h *FindUserListHandler) Handle(ctx context.Context, req *FindUserListReque
 
 	total, err := h.readModel.CountUserNumber(ctx, req.Name)
 	if err != nil {
-		log.Errorf("failed to count users: %s", err.Error())
+		helper.Error("failed to count users", "error", err.Error())
 		return nil, err
 	}
 	users, err := h.readModel.FindUserList(ctx, req.Name, req.PageSize, req.Page*(req.PageSize-1))
 	if err != nil {
-		log.Errorf("failed to find user: %s", err.Error())
+		helper.Error("failed to find user", "error", err.Error())
 		return nil, err
 	}
 	return &FindUserListResponse{Total: total, Users: users}, nil

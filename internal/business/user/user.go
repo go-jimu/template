@@ -3,9 +3,9 @@ package user
 import (
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
-	"github.com/go-jimu/template/internal/user/application"
-	"github.com/go-jimu/template/internal/user/application/transport"
-	"github.com/go-jimu/template/internal/user/infrastructure"
+	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/business/user/application/transport"
+	"github.com/go-jimu/template/internal/business/user/infrastructure"
 	"github.com/jmoiron/sqlx"
 )
 

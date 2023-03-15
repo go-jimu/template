@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jimu/components/logger"
+	internallog "github.com/go-jimu/template/internal/pkg/log"
 )
 
 type rootController struct {
@@ -12,6 +13,13 @@ type rootController struct {
 }
 
 var _ Controller = (*rootController)(nil)
+
+func newRootController(log logger.Logger) Controller {
+	return &rootController{logger: logger.With(
+		log,
+		"request_id", internallog.Carry(middleware.RequestIDKey)),
+	}
+}
 
 func (rc *rootController) Slug() string {
 	return ""

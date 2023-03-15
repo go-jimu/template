@@ -2,8 +2,8 @@ package infrastructure
 
 import (
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/user/application"
-	"github.com/go-jimu/template/internal/user/domain"
+	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/jinzhu/copier"
 )
 

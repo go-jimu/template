@@ -9,11 +9,11 @@ import (
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
+	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg/context"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
-	"github.com/go-jimu/template/internal/user"
 )
 
 type Option struct {

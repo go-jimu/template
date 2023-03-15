@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/user/domain"
+	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
 type Queries struct {
@@ -42,17 +42,15 @@ func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepo
 	return app
 }
 
-func (app *Application) Get(ctx context.Context, uid string) (*User, error) {
-	log := logger.NewHelper(logger.FromContext(ctx)).WithContext(ctx)
-	log.Infof("start to get user by id: %s", uid)
-
+func (app *Application) Get(ctx context.Context, log logger.Logger, uid string) (*User, error) {
+	helper := logger.NewHelper(log).WithContext(ctx)
 	entity, err := app.repo.Get(ctx, uid)
 	if err != nil {
-		log.Errorf("failed to get user by id: %s, %s", uid, err.Error())
+		helper.Error("failed to get user", "error", err.Error())
 		return nil, err
 	}
 	if err := entity.Validate(); err != nil {
-		log.Errorf("bad user entity: %s", err.Error())
+		helper.Error("bad user entity", "error", err.Error())
 		return nil, err
 	}
 	dto, _ := assembleDomainUser(entity)

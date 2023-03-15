@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/go-jimu/components/mediator"
-	"github.com/go-jimu/template/internal/user/domain"
+	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
 type UserCreatedHandler struct {

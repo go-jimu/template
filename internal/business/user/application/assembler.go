@@ -1,7 +1,7 @@
 package application
 
 import (
-	"github.com/go-jimu/template/internal/user/domain"
+	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/jinzhu/copier"
 )
 

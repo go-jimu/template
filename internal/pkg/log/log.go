@@ -2,10 +2,11 @@ package log
 
 import (
 	"context"
-	"os"
 
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jimu/components/logger"
+	zl "github.com/go-jimu/contrib/logger/zap"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Option struct {
@@ -26,16 +27,27 @@ var (
 	log logger.Logger
 )
 
+func newZap() (*zap.Logger, error) {
+	conf := zap.NewProductionConfig()
+	conf.Sampling = nil
+	conf.DisableCaller = true
+	conf.EncoderConfig.TimeKey = "@timestamp"
+	conf.EncoderConfig.MessageKey = zapcore.OmitKey
+	conf.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	return conf.Build()
+}
+
 func NewLog(opt Option) logger.Logger {
-	log = logger.NewStdLogger(os.Stdout)
-	log = logger.With(log,
-		"caller", Caller(),
-		"request-id", Carry(middleware.RequestIDKey),
-	)
+	zapLog, err := newZap()
+	if err != nil {
+		panic(err)
+	}
+	log = zl.NewLog(zapLog)
 	log = logger.NewHelper(log,
 		logger.WithLevel(levelDescriptions[opt.Level]),
 		logger.WithMessageKey(opt.MessageKey),
 	)
+	logger.SetDefault(Default)
 	return log
 }
 
@@ -50,4 +62,8 @@ func Carry(key any) logger.Valuer {
 		}
 		return ctx.Value(key)
 	}
+}
+
+func Default() logger.Logger {
+	return log
 }

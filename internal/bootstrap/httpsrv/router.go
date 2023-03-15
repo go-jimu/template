@@ -63,7 +63,7 @@ func NewHTTPServer(opt Option, log logger.Logger, cs ...Controller) HTTPServer {
 		router:      chi.NewRouter(),
 		option:      opt,
 		logger:      logger.NewHelper(log),
-		root:        &rootController{logger: log},
+		root:        newRootController(log),
 		controllers: make([]Controller, 0),
 	}
 
