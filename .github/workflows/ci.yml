@@ -38,6 +38,7 @@ jobs:
       run: make benchmark
 
   docker:
+    name: Build And Publish Docker Image
     runs-on: ubuntu-latest
     needs: unittest
     steps:
