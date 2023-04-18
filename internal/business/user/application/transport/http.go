@@ -7,7 +7,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
+	"github.com/go-jimu/template/internal/bootstrap/httpsrv/binding"
 	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/pkg/bytesconv"
 )
 
 type controller struct {
@@ -28,7 +30,9 @@ func (un *controller) Middlewares() []httpsrv.Middleware {
 
 func (uc *controller) APIs() []httpsrv.API {
 	return []httpsrv.API{
-		{Method: http.MethodGet, Pattern: "/{userID}", Func: uc.GetUserByID},
+		{Method: http.MethodGet, Pattern: "/details/{userID}", Func: uc.GetUserByID},
+		{Method: http.MethodPatch, Pattern: "/details/{userID}", Func: uc.ChangePassword},
+		{Method: http.MethodPost, Pattern: "/users", Func: uc.FindUsers},
 	}
 }
 
@@ -38,7 +42,7 @@ func (uc *controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	user, err := uc.app.Get(r.Context(), log, userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		w.Write(bytesconv.StringToBytes(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -48,13 +52,11 @@ func (uc *controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 func (uc *controller) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	command := new(application.CommandChangePassword)
-	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(command); err != nil {
+	if err := binding.Default(r).Bind(r, command); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	command.ID = chi.URLParam(r, "userID")
 
 	if err := uc.app.Commands.ChangePassword.Handle(r.Context(), logger.FromContext(r.Context()), command); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -63,5 +65,21 @@ func (uc *controller) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write([]byte("{}"))
+	w.Write(bytesconv.StringToBytes("{}"))
+}
+
+func (uc *controller) FindUsers(w http.ResponseWriter, r *http.Request) {
+	query := new(application.QueryFindUserListRequest)
+	if err := binding.Default(r).Bind(r, query); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err := uc.app.Queries.FindUserList.Handle(r.Context(), logger.FromContext(r.Context()), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
