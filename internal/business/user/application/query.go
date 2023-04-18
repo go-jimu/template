@@ -26,7 +26,7 @@ func NewFindUserListHandler(read QueryRepository) *FindUserListHandler {
 func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req *QueryFindUserListRequest) (*QueryFindUserListResponse, error) {
 	helper := logger.NewHelper(log).WithContext(ctx)
 
-	helper.Info("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
+	helper.Infof("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
 	if req.PageSize > 100 {
 		req.PageSize = 100
 	}
