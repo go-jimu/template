@@ -8,6 +8,7 @@ import (
 	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/pkg/bytesconv"
 )
 
 type controller struct {
@@ -38,7 +39,7 @@ func (uc *controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	user, err := uc.app.Get(r.Context(), log, userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		w.Write(bytesconv.StringToBytes(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -63,5 +64,5 @@ func (uc *controller) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write([]byte("{}"))
+	w.Write(bytesconv.StringToBytes("{}"))
 }

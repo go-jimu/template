@@ -52,21 +52,20 @@ func CarryLog(log logger.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func RequestLog(log logger.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			entry := newLogEntry(log, r)
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			start := time.Now()
+func RequestLog(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		log := logger.FromContext(r.Context())
+		entry := newLogEntry(log, r)
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			defer func() {
-				entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(start), nil)
-			}()
+		defer func() {
+			entry.Write(ww.Status(), ww.BytesWritten(), ww.Header(), time.Since(start), nil)
+		}()
 
-			next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
-		}
-		return http.HandlerFunc(fn)
+		next.ServeHTTP(ww, middleware.WithLogEntry(r, entry))
 	}
+	return http.HandlerFunc(fn)
 }
 
 func InjectContext(next http.Handler) http.Handler {
@@ -79,5 +78,17 @@ func InjectContext(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(mc))
 	}
 
+	return http.HandlerFunc(fn)
+}
+
+func RecordRequestID(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		log := logger.FromContext(ctx)
+		requestID := ctx.Value(middleware.RequestIDKey)
+		log = logger.With(log, "request_id", requestID)
+		ctx = logger.InContext(ctx, log)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
 	return http.HandlerFunc(fn)
 }
