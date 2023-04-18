@@ -8,18 +8,18 @@ type (
 	}
 
 	CommandChangePassword struct {
-		ID          string `json:"id"`
+		ID          string `json:"_"`
 		OldPassword string `json:"old_password"`
 		NewPassword string `json:"new_password"`
 	}
 
-	FindUserListRequest struct {
-		Name     string `json:"name"`
-		Page     int    `json:"page"`
-		PageSize int    `json:"page_size"`
+	QueryFindUserListRequest struct {
+		Name     string `form:"name"`
+		Page     int    `form:"page"`
+		PageSize int    `form:"page_size"`
 	}
 
-	FindUserListResponse struct {
+	QueryFindUserListResponse struct {
 		Total int     `json:"total"`
 		Users []*User `json:"users"`
 	}

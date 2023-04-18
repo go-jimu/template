@@ -23,7 +23,7 @@ func NewFindUserListHandler(read QueryRepository) *FindUserListHandler {
 	}
 }
 
-func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req *FindUserListRequest) (*FindUserListResponse, error) {
+func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req *QueryFindUserListRequest) (*QueryFindUserListResponse, error) {
 	helper := logger.NewHelper(log).WithContext(ctx)
 
 	helper.Info("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
@@ -44,5 +44,5 @@ func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req
 		helper.Error("failed to find user", "error", err.Error())
 		return nil, err
 	}
-	return &FindUserListResponse{Total: total, Users: users}, nil
+	return &QueryFindUserListResponse{Total: total, Users: users}, nil
 }

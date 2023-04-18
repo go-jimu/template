@@ -11,8 +11,11 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/monoculum/formam/v3 v3.6.0
+	github.com/pelletier/go-toml/v2 v2.0.5
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.7.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -24,10 +27,9 @@ require (
 	github.com/leodido/go-urn v1.2.2 // indirect
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
+	github.com/monoculum/formam v3.5.5+incompatible // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
