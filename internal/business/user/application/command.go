@@ -3,8 +3,9 @@ package application
 import (
 	"context"
 
-	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/business/user/domain"
+	"github.com/go-jimu/template/internal/pkg/log"
+	"golang.org/x/exp/slog"
 )
 
 type CommandChangePasswordHandler struct {
@@ -17,22 +18,20 @@ func NewCommandChangePasswordHandler(repo domain.Repository) *CommandChangePassw
 	}
 }
 
-func (h *CommandChangePasswordHandler) Handle(ctx context.Context, log logger.Logger, command *CommandChangePassword) error {
-	helper := logger.NewHelper(log).WithContext(ctx)
-
+func (h *CommandChangePasswordHandler) Handle(ctx context.Context, logger *slog.Logger, command *CommandChangePassword) error {
 	entity, err := h.repo.Get(ctx, command.ID)
 	if err != nil {
-		helper.Error("failed to get user password", "error", err.Error())
+		logger.ErrorCtx(ctx, "failed to get user password", log.Error(err))
 		return err
 	}
 	if err = entity.ChangePassword(command.OldPassword, command.NewPassword); err != nil {
-		helper.Error("failed to change password", "error", err.Error())
+		logger.ErrorCtx(ctx, "failed to change password", log.Error(err))
 		return err
 	}
 	if err = h.repo.Save(ctx, entity); err != nil {
-		helper.Error("failed to save new password", "error", err.Error())
+		logger.ErrorCtx(ctx, "failed to save new password", log.Error(err))
 		return err
 	}
-	helper.Info("password is changed")
+	logger.InfoCtx(ctx, "password is changed")
 	return nil
 }

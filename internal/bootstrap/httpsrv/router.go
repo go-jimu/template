@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-jimu/components/logger"
 	internalCtx "github.com/go-jimu/template/internal/pkg/context"
+	"golang.org/x/exp/slog"
 )
 
 type (
@@ -45,7 +45,7 @@ type (
 	router struct {
 		router      *chi.Mux
 		option      Option
-		logger      *logger.Helper
+		logger      *slog.Logger
 		root        Controller
 		controllers []Controller
 	}
@@ -58,11 +58,11 @@ const (
 
 var readTimeout = 3 * time.Second
 
-func NewHTTPServer(opt Option, log logger.Logger, cs ...Controller) HTTPServer {
+func NewHTTPServer(opt Option, log *slog.Logger, cs ...Controller) HTTPServer {
 	g := &router{
 		router:      chi.NewRouter(),
 		option:      opt,
-		logger:      logger.NewHelper(log),
+		logger:      log,
 		root:        newRootController(log),
 		controllers: make([]Controller, 0),
 	}

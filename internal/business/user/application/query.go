@@ -3,7 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/go-jimu/components/logger"
+	"github.com/go-jimu/template/internal/pkg/log"
+	"golang.org/x/exp/slog"
 )
 
 type (
@@ -23,10 +24,7 @@ func NewFindUserListHandler(read QueryRepository) *FindUserListHandler {
 	}
 }
 
-func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req *QueryFindUserListRequest) (*QueryFindUserListResponse, error) {
-	helper := logger.NewHelper(log).WithContext(ctx)
-
-	helper.Infof("start to handle FindUserList: name=%s, page=%d, page_size=%d", req.Name, req.Page, req.PageSize)
+func (h *FindUserListHandler) Handle(ctx context.Context, logger *slog.Logger, req *QueryFindUserListRequest) (*QueryFindUserListResponse, error) {
 	if req.PageSize > 100 {
 		req.PageSize = 100
 	}
@@ -36,12 +34,12 @@ func (h *FindUserListHandler) Handle(ctx context.Context, log logger.Logger, req
 
 	total, err := h.readModel.CountUserNumber(ctx, req.Name)
 	if err != nil {
-		helper.Error("failed to count users", "error", err.Error())
+		logger.ErrorCtx(ctx, "failed to count users", log.Error(err))
 		return nil, err
 	}
 	users, err := h.readModel.FindUserList(ctx, req.Name, req.PageSize, req.Page*(req.PageSize-1))
 	if err != nil {
-		helper.Error("failed to find user", "error", err.Error())
+		logger.ErrorCtx(ctx, "failed to find user", log.Error(err))
 		return nil, err
 	}
 	return &QueryFindUserListResponse{Total: total, Users: users}, nil

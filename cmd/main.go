@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
@@ -14,6 +14,7 @@ import (
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
+	"golang.org/x/exp/slog"
 )
 
 type Option struct {
@@ -31,8 +32,8 @@ func main() {
 	}
 
 	// pkg layer
-	log := log.NewLog(opt.Logger).(*logger.Helper)
-	log.Info("loaded configurations", "option", *opt)
+	log := log.NewLog(opt.Logger)
+	log.Info("loaded configurations", slog.Any("option", opt))
 
 	context.New(opt.Context)
 
@@ -54,7 +55,7 @@ func main() {
 	if err := cg.Serve(ctx); err != nil {
 		log.Error("failed to shutdown http server", "error", err.Error())
 	}
-	log.Warnf("kill all available contexts in %s", opt.Context.ShutdownTimeout)
+	slog.Warn(fmt.Sprintf("kill all available contexts in %s", opt.Context.ShutdownTimeout))
 	context.KillContextAfterTimeout()
 	log.Info("bye")
 	os.Exit(0)
