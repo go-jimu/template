@@ -33,7 +33,7 @@ func (uc *controller) APIs() []httpsrv.API {
 	return []httpsrv.API{
 		{Method: http.MethodGet, Pattern: "/details/{userID}", Func: uc.GetUserByID},
 		{Method: http.MethodPatch, Pattern: "/details/{userID}", Func: uc.ChangePassword},
-		{Method: http.MethodPost, Pattern: "/users", Func: uc.FindUsers},
+		{Method: http.MethodGet, Pattern: "/users", Func: uc.FindUsers},
 	}
 }
 

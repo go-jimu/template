@@ -3,11 +3,13 @@ package httpsrv
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	internalCtx "github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/pkg/log"
+	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
 )
 
@@ -39,15 +41,15 @@ type (
 
 	HTTPServer interface {
 		With(Controller)
-		Serve(context.Context) error
+		Serve() error
 	}
 
 	router struct {
 		router      *chi.Mux
 		option      Option
-		logger      *slog.Logger
 		root        Controller
 		controllers []Controller
+		server      *http.Server
 	}
 )
 
@@ -58,23 +60,35 @@ const (
 
 var readTimeout = 3 * time.Second
 
-func NewHTTPServer(opt Option, log *slog.Logger, cs ...Controller) HTTPServer {
+func NewHTTPServer(lc fx.Lifecycle, opt Option, cs ...Controller) HTTPServer {
+	slog.Info("create a new HTTP server", slog.Any("option", opt))
 	g := &router{
 		router:      chi.NewRouter(),
 		option:      opt,
-		logger:      log,
-		root:        newRootController(log),
+		root:        newRootController(),
 		controllers: make([]Controller, 0),
 	}
 
 	for _, controller := range cs {
 		g.With(controller)
 	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return g.Serve()
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return g.server.Shutdown(ctx)
+		},
+	})
+
 	return g
 }
 
 func (g *router) With(c Controller) {
 	g.controllers = append(g.controllers, c)
+	slog.Info("a new controller is append to HTTP server", slog.String("slug", c.Slug()))
 }
 
 // chi: all middlewares must be defined before routes on a mux
@@ -114,39 +128,30 @@ func (g *router) lazyLoad() {
 	}
 }
 
-func (g *router) Serve(ctx context.Context) error {
+func (g *router) Serve() error {
 	g.lazyLoad()
 
-	srv := &http.Server{
-		Addr:              g.option.Addr,
+	ln, err := net.Listen("tcp", g.option.Addr)
+	if err != nil {
+		return err
+	}
+
+	slog.Info("HTTP server is running", slog.String("address", g.option.Addr))
+
+	g.server = &http.Server{
 		Handler:           g.router,
 		ReadHeaderTimeout: readTimeout, // https://cwe.mitre.org/data/definitions/400.html
 	}
-	internalErr := make(chan error, 1)
-	defer close(internalErr)
 
 	go func() {
-		var err error
-		if g.option.KeyFile != "" && g.option.CertFile != "" {
-			err = srv.ListenAndServeTLS(g.option.CertFile, g.option.KeyFile)
-		} else {
-			err = srv.ListenAndServe()
-		}
-		if !errors.Is(err, http.ErrServerClosed) {
-			internalErr <- err
+		if err := g.server.Serve(ln); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				slog.Warn("HTTP Server was shutdown")
+			} else {
+				slog.Error("an error occurred durinng runtime of the HTTP server", log.Error(err))
+			}
 		}
 	}()
 
-	var err error
-	select {
-	case <-ctx.Done():
-		g.logger.Warn("caught quit signal")
-	case err = <-internalErr:
-		g.logger.Error("an unknown error occurred in http server", "error", err.Error())
-	}
-
-	ctx, cancel := internalCtx.GenDefaultContext()
-	defer cancel()
-	g.logger.Warn("try to shutdown http server")
-	return srv.Shutdown(ctx)
+	return nil
 }

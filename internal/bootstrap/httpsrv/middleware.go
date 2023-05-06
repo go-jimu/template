@@ -34,10 +34,10 @@ func (le *logEntry) Panic(v interface{}, stack []byte) {
 	le.log.ErrorCtx(le.req.Context(), "broken request", slog.Any("panic", v))
 }
 
-func CarryLog(logger *slog.Logger) func(http.Handler) http.Handler {
+func CarryLog() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r.WithContext(log.InContext(r.Context(), logger)))
+			next.ServeHTTP(w, r.WithContext(log.InContext(r.Context(), slog.Default())))
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -57,19 +57,6 @@ func RequestLog(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(fn)
 }
-
-// func InjectContext(next http.Handler) http.Handler {
-// 	fn := func(w http.ResponseWriter, r *http.Request) {
-// 		ctx, cancel := context.GenDefaultContext()
-// 		defer cancel()
-// 		mc, mcCancel := context.MergeContext(r.Context(), ctx)
-// 		defer mcCancel()
-
-// 		next.ServeHTTP(w, r.WithContext(mc))
-// 	}
-
-// 	return http.HandlerFunc(fn)
-// }
 
 func RecordRequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {

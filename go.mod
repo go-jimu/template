@@ -12,6 +12,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/monoculum/formam/v3 v3.6.0
 	github.com/pelletier/go-toml/v2 v2.0.7
+	go.uber.org/fx v1.19.2
 	golang.org/x/crypto v0.7.0
 	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53
 	gopkg.in/yaml.v3 v3.0.1
@@ -27,6 +28,10 @@ require (
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
 	github.com/monoculum/formam v3.5.5+incompatible // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/dig v1.16.1 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 )

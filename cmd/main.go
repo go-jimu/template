@@ -1,62 +1,63 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
-	"os/signal"
-	"syscall"
+	"time"
 
-	"github.com/go-jimu/components/mediator"
+	"github.com/go-jimu/template/internal/bootstrap"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/business/user"
-	"github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
+	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
 )
 
 type Option struct {
-	Logger     log.Option     `json:"logger" toml:"logger" yaml:"logger"`
-	Context    context.Option `json:"context" toml:"context" yaml:"context"`
-	MySQL      mysql.Option   `json:"mysql" toml:"mysql" yaml:"mysql"`
-	HTTPServer httpsrv.Option `json:"http-server" toml:"http-server" yaml:"http-server"`
+	fx.Out
+	Logger     log.Option      `json:"logger" toml:"logger" yaml:"logger"`
+	MySQL      mysql.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+	HTTPServer httpsrv.Option  `json:"http-server" toml:"http-server" yaml:"http-server"`
+	Eventbus   eventbus.Option `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 
-func main() {
+func parseOption() (Option, error) {
 	opt := new(Option)
 	conf := option.Load()
 	if err := conf.Scan(opt); err != nil {
-		panic(err)
+		return Option{}, err
+	}
+	return *opt, nil
+}
+
+func main() {
+	app := fx.New(
+		fx.Provide(parseOption),
+		bootstrap.Module,
+		pkg.Module,
+		user.Module,
+		fx.NopLogger,
+	)
+	startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := app.Start(startCtx); err != nil {
+		slog.ErrorCtx(startCtx, "failed to start application", log.Error(err))
+		os.Exit(1)
 	}
 
-	// pkg layer
-	log := log.NewLog(opt.Logger)
-	log.Info("loaded configurations", slog.Any("option", opt))
+	<-app.Done()
+	slog.Warn("caught quit signal")
 
-	context.New(opt.Context)
-
-	// eventbus layer
-	eb := mediator.NewInMemMediator(10)
-	eventbus.SetDefault(eb)
-
-	// driver layer
-	conn := mysql.NewMySQLDriver(opt.MySQL)
-	cg := httpsrv.NewHTTPServer(opt.HTTPServer, log)
-
-	// each business layer
-	user.Init(eb, conn, cg)
-
-	// graceful shutdown
-	ctx, stop := signal.NotifyContext(context.RootContext(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	defer stop()
-
-	if err := cg.Serve(ctx); err != nil {
-		log.Error("failed to shutdown http server", "error", err.Error())
+	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := app.Stop(stopCtx); err != nil {
+		slog.Error("failed to stop application", log.Error(err))
+		os.Exit(1)
 	}
-	slog.Warn(fmt.Sprintf("kill all available contexts in %s", opt.Context.ShutdownTimeout))
-	context.KillContextAfterTimeout()
-	log.Info("bye")
 	os.Exit(0)
 }
