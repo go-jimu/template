@@ -5,48 +5,39 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-jimu/components/logger"
-	"github.com/go-jimu/template/internal/pkg/context"
+	"github.com/go-jimu/template/internal/pkg/log"
+	"golang.org/x/exp/slog"
 )
 
 type logEntry struct {
-	log *logger.Helper
+	log *slog.Logger
 	req *http.Request
 }
 
-func newLogEntry(log logger.Logger, r *http.Request) middleware.LogEntry {
+func newLogEntry(log *slog.Logger, r *http.Request) middleware.LogEntry {
 	return &logEntry{
-		log: logger.NewHelper(log),
+		log: log,
 		req: r,
 	}
 }
 
 func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
-	log := le.log.WithContext(le.req.Context())
-	log.Info("request complete",
-		"request_method", le.req.Method,
-		"request_path", le.req.URL.Path,
-		"request_query", le.req.URL.RawQuery,
-		// "user_agent", le.req.Header.Get("User-Agent"),
-		"client_ip", le.req.RemoteAddr,
-		"response_status_code", status,
-		// "response_bytes_length", bytes,
-		"elapsed", elapsed.String(),
+	le.log.InfoCtx(le.req.Context(), "request complete",
+		slog.String("client_ip", le.req.RemoteAddr),
+		slog.Group("request", slog.String("method", le.req.Method), slog.String("path", le.req.URL.Path), slog.String("query", le.req.URL.RawQuery)),
+		slog.Group("response", slog.Int("status_code", status), slog.Int("bytes_lenght", bytes)),
+		slog.String("elapsed", elapsed.String()),
 	)
 }
 
 func (le *logEntry) Panic(v interface{}, stack []byte) {
-	log := le.log.WithContext(le.req.Context())
-	log.Error("broken request",
-		"panic", v,
-		"stack", string(stack),
-	)
+	le.log.ErrorCtx(le.req.Context(), "broken request", slog.Any("panic", v))
 }
 
-func CarryLog(log logger.Logger) func(http.Handler) http.Handler {
+func CarryLog() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r.WithContext(logger.InContext(r.Context(), log)))
+			next.ServeHTTP(w, r.WithContext(log.InContext(r.Context(), slog.Default())))
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -55,8 +46,7 @@ func CarryLog(log logger.Logger) func(http.Handler) http.Handler {
 func RequestLog(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		log := logger.FromContext(r.Context())
-		entry := newLogEntry(log, r)
+		entry := newLogEntry(log.FromContext(r.Context()), r)
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 		defer func() {
@@ -68,26 +58,12 @@ func RequestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func InjectContext(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.GenDefaultContext()
-		defer cancel()
-		mc, mcCancel := context.MergeContext(r.Context(), ctx)
-		defer mcCancel()
-
-		next.ServeHTTP(w, r.WithContext(mc))
-	}
-
-	return http.HandlerFunc(fn)
-}
-
 func RecordRequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := logger.FromContext(ctx)
-		requestID := ctx.Value(middleware.RequestIDKey)
-		log = logger.With(log, "request_id", requestID)
-		ctx = logger.InContext(ctx, log)
+		logger := log.FromContext(ctx)
+		logger = logger.With(slog.String("request_id", middleware.GetReqID(r.Context())))
+		ctx = log.InContext(ctx, logger)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

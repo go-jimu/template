@@ -1,9 +1,7 @@
 logger:
   level: info
-  message_key: msg
-context:
-  timeout: 5s
-  shutdown_timeout: 15s
+eventbus:
+  concurrent: 10
 mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}

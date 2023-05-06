@@ -2,9 +2,21 @@ package eventbus
 
 import (
 	"github.com/go-jimu/components/mediator"
+	"golang.org/x/exp/slog"
 )
 
+type Option struct {
+	Concurrent int `json:"concurrent" yaml:"concurrent" toml:"concurrent"`
+}
+
 var eventbus mediator.Mediator
+
+func New(opt Option) mediator.Mediator {
+	slog.Info("create a new eventbus", slog.Any("option", opt))
+	eb := mediator.NewInMemMediator(opt.Concurrent)
+	SetDefault(eb)
+	return eb
+}
 
 func Subscribe(eh mediator.EventHandler) {
 	eventbus.Subscribe(eh)

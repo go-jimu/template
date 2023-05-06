@@ -1,11 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/fx"
+	"golang.org/x/exp/slog"
 )
 
 type Option struct {
@@ -18,19 +21,27 @@ type Option struct {
 	MaxIdleTime  string `json:"max_idle_time" yaml:"max_idle_time" toml:"max_idle_time"`
 }
 
-func NewMySQLDriver(opt Option) *sqlx.DB {
-	db, err := sqlx.Connect(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
-	if err != nil {
-		panic(err)
-	}
+func NewMySQLDriver(lc fx.Lifecycle, opt Option) *sqlx.DB {
+	var db *sqlx.DB
+	var err error
 
-	db.SetMaxOpenConns(opt.MaxOpenConns)
-	duration, err := time.ParseDuration(opt.MaxIdleTime)
-	if err != nil {
-		panic(err)
-	}
-	db.SetConnMaxIdleTime(duration)
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			slog.InfoCtx(ctx, "initiating connection to the MySQL server.", slog.Any("option", opt))
+			db, err = sqlx.Connect("mysql",
+				fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
+			if err != nil {
+				return err
+			}
+
+			db.SetMaxOpenConns(opt.MaxOpenConns)
+			duration, err := time.ParseDuration(opt.MaxIdleTime)
+			if err != nil {
+				return err
+			}
+			db.SetConnMaxIdleTime(duration)
+			return nil
+		},
+	})
 	return db
 }

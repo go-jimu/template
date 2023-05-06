@@ -4,18 +4,16 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-jimu/components/logger"
 	"github.com/go-jimu/template/internal/pkg/bytesconv"
 )
 
 type rootController struct {
-	logger logger.Logger
 }
 
 var _ Controller = (*rootController)(nil)
 
-func newRootController(log logger.Logger) Controller {
-	return &rootController{logger: log}
+func newRootController() Controller {
+	return &rootController{}
 }
 
 func (rc *rootController) Slug() string {
@@ -24,8 +22,7 @@ func (rc *rootController) Slug() string {
 
 func (rc *rootController) Middlewares() []Middleware {
 	return []Middleware{
-		{Middleware: InjectContext, Scope: ScopeGlobal},
-		{Middleware: CarryLog(rc.logger), Scope: ScopeGlobal},
+		{Middleware: CarryLog(), Scope: ScopeGlobal},
 		{Middleware: middleware.RequestID, Scope: ScopeGlobal},
 		{Middleware: RecordRequestID, Scope: ScopeGlobal},
 		{Middleware: middleware.RealIP, Scope: ScopeGlobal},
