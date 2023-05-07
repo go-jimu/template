@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/bootstrap"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
@@ -46,7 +47,7 @@ func main() {
 	defer cancel()
 
 	if err := app.Start(startCtx); err != nil {
-		slog.ErrorCtx(startCtx, "failed to start application", log.Error(err))
+		slog.ErrorCtx(startCtx, "failed to start application", sloghelper.Error(err))
 		os.Exit(1)
 	}
 
@@ -56,7 +57,7 @@ func main() {
 	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := app.Stop(stopCtx); err != nil {
-		slog.Error("failed to stop application", log.Error(err))
+		slog.Error("failed to stop application", sloghelper.Error(err))
 		os.Exit(1)
 	}
 	os.Exit(0)
