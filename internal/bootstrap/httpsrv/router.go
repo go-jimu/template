@@ -100,6 +100,7 @@ func (g *router) lazyLoad() {
 		}
 	}
 
+	// chi: all middlewares must be defined before routes on a mux
 	for _, controller := range g.controllers {
 		for _, middleware := range controller.Middlewares() {
 			if middleware.Scope == ScopeGlobal {
@@ -107,7 +108,6 @@ func (g *router) lazyLoad() {
 			}
 		}
 	}
-
 	for _, api := range g.root.APIs() {
 		g.router.Method(api.Method, api.Pattern, api.Func)
 	}
@@ -116,7 +116,7 @@ func (g *router) lazyLoad() {
 	for _, controller := range g.controllers {
 		g.router.Route(controller.Slug(), func(r chi.Router) {
 			for _, middleware := range controller.Middlewares() {
-				if middleware.Scope != ScopeGlobal {
+				if middleware.Scope == ScopeController {
 					r.Use(middleware.Middleware)
 				}
 			}
