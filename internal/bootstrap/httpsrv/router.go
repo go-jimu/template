@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-jimu/template/internal/pkg/log"
+	"github.com/go-jimu/components/sloghelper"
 	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
 )
@@ -148,7 +148,7 @@ func (g *router) Serve() error {
 			if errors.Is(err, http.ErrServerClosed) {
 				slog.Warn("HTTP Server was shutdown")
 			} else {
-				slog.Error("an error occurred durinng runtime of the HTTP server", log.Error(err))
+				slog.Error("an error occurred durinng runtime of the HTTP server", sloghelper.Error(err))
 			}
 		}
 	}()

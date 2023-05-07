@@ -1,5 +1,6 @@
 logger:
   level: info
+  output: console
 eventbus:
   concurrent: 10
 mysql:

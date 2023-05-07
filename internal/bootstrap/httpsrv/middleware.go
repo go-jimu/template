@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-jimu/template/internal/pkg/log"
+	"github.com/go-jimu/components/sloghelper"
 	"golang.org/x/exp/slog"
 )
 
@@ -37,7 +37,7 @@ func (le *logEntry) Panic(v interface{}, stack []byte) {
 func CarryLog() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r.WithContext(log.InContext(r.Context(), slog.Default())))
+			next.ServeHTTP(w, r.WithContext(sloghelper.InContext(r.Context(), slog.Default())))
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -46,7 +46,7 @@ func CarryLog() func(http.Handler) http.Handler {
 func RequestLog(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		entry := newLogEntry(log.FromContext(r.Context()), r)
+		entry := newLogEntry(sloghelper.FromContext(r.Context()), r)
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
 		defer func() {
@@ -61,9 +61,9 @@ func RequestLog(next http.Handler) http.Handler {
 func RecordRequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		logger := log.FromContext(ctx)
+		logger := sloghelper.FromContext(ctx)
 		logger = logger.With(slog.String("request_id", middleware.GetReqID(r.Context())))
-		ctx = log.InContext(ctx, logger)
+		ctx = sloghelper.InContext(ctx, logger)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

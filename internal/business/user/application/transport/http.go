@@ -5,11 +5,11 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv/binding"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/pkg/bytesconv"
-	"github.com/go-jimu/template/internal/pkg/log"
 	"golang.org/x/exp/slog"
 )
 
@@ -39,7 +39,7 @@ func (uc *controller) APIs() []httpsrv.API {
 
 func (uc *controller) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID := chi.URLParam(r, "userID")
-	logger := log.FromContext(r.Context())
+	logger := sloghelper.FromContext(r.Context())
 	logger = logger.With(slog.String("user_id", userID))
 	user, err := uc.app.Get(r.Context(), logger, userID)
 	if err != nil {
@@ -60,7 +60,7 @@ func (uc *controller) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	command.ID = chi.URLParam(r, "userID")
 
-	if err := uc.app.Commands.ChangePassword.Handle(r.Context(), log.FromContext(r.Context()), command); err != nil {
+	if err := uc.app.Commands.ChangePassword.Handle(r.Context(), sloghelper.FromContext(r.Context()), command); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +77,7 @@ func (uc *controller) FindUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := uc.app.Queries.FindUserList.Handle(r.Context(), log.FromContext(r.Context()), query)
+	_, err := uc.app.Queries.FindUserList.Handle(r.Context(), sloghelper.FromContext(r.Context()), query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
