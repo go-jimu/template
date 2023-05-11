@@ -37,7 +37,7 @@ func (le *logEntry) Panic(v interface{}, stack []byte) {
 func CarryLog() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r.WithContext(sloghelper.InContext(r.Context(), slog.Default())))
+			next.ServeHTTP(w, r.WithContext(sloghelper.NewContext(r.Context(), slog.Default())))
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -63,7 +63,7 @@ func RecordRequestID(next http.Handler) http.Handler {
 		ctx := r.Context()
 		logger := sloghelper.FromContext(ctx)
 		logger = logger.With(slog.String("request_id", middleware.GetReqID(r.Context())))
-		ctx = sloghelper.InContext(ctx, logger)
+		ctx = sloghelper.NewContext(ctx, logger)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
