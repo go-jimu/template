@@ -28,7 +28,7 @@ var levelDescriptions = map[string]slog.Leveler{
 }
 
 func NewLog(opt Option) *slog.Logger {
-	opts := slog.HandlerOptions{
+	opts := &slog.HandlerOptions{
 		AddSource: true,
 		Level:     levelDescriptions[opt.Level],
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -55,7 +55,7 @@ func NewLog(opt Option) *slog.Logger {
 		}
 	}
 
-	handler := sloghelper.NewHandler(opts.NewJSONHandler(output))
+	handler := sloghelper.NewHandler(slog.NewJSONHandler(output, opts))
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	logger.Info("the log module has been initialized successfully.", slog.Any("option", opt))
