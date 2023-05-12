@@ -8,6 +8,6 @@ import (
 
 var Module = fx.Module(
 	"bootstrap",
-	fx.Provide(mysql.NewMySQLDriver),
 	fx.Provide(httpsrv.NewHTTPServer),
+	fx.Provide(mysql.NewMySQLDriver),
 )

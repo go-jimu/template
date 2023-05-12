@@ -44,11 +44,6 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*sqlx.DB,
 			db.SetConnMaxIdleTime(duration)
 			return nil
 		},
-
-		OnStop: func(ctx context.Context) error {
-			logger.WarnCtx(ctx, "shutdown tcp connnection with mysql")
-			return db.Close()
-		},
 	})
 	return db, nil
 }
