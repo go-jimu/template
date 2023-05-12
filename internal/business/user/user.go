@@ -1,21 +1,20 @@
 package user
 
 import (
-	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/application/transport"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/fx"
 )
 
-var Module = fx.Module("domain.user", fx.Invoke(New))
-
-func New(m mediator.Mediator, db *sqlx.DB, g httpsrv.HTTPServer) {
-	repo := infrastructure.NewRepository(db)
-	read := infrastructure.NewQueryRepository(db)
-	app := application.NewApplication(m, repo, read)
-	controller := transport.NewController(app)
-	g.With(controller)
-}
+var Module = fx.Module(
+	"domain.user",
+	fx.Provide(infrastructure.NewQueryRepository),
+	fx.Provide(transport.NewController),
+	fx.Provide(application.NewApplication),
+	fx.Provide(infrastructure.NewRepository),
+	fx.Invoke(func(srv httpsrv.HTTPServer, controller httpsrv.Controller) {
+		srv.With(controller)
+	}),
+)

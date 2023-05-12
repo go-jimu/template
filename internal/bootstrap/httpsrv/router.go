@@ -45,6 +45,7 @@ type (
 	}
 
 	router struct {
+		logger      *slog.Logger
 		router      *chi.Mux
 		option      Option
 		root        Controller
@@ -60,9 +61,10 @@ const (
 
 var readTimeout = 3 * time.Second
 
-func NewHTTPServer(lc fx.Lifecycle, opt Option, cs ...Controller) HTTPServer {
+func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Controller) HTTPServer {
 	slog.Info("create a new HTTP server", slog.Any("option", opt))
 	g := &router{
+		logger:      logger,
 		router:      chi.NewRouter(),
 		option:      opt,
 		root:        newRootController(),
@@ -88,7 +90,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, cs ...Controller) HTTPServer {
 
 func (g *router) With(c Controller) {
 	g.controllers = append(g.controllers, c)
-	slog.Info("a new controller is append to HTTP server", slog.String("slug", c.Slug()))
+	g.logger.Info("a new controller is append to HTTP server", slog.String("slug", c.Slug()))
 }
 
 // chi: all middlewares must be defined before routes on a mux
@@ -136,7 +138,7 @@ func (g *router) Serve() error {
 		return err
 	}
 
-	slog.Info("HTTP server is running", slog.String("address", g.option.Addr))
+	g.logger.Info("HTTP server is running", slog.String("address", g.option.Addr))
 
 	g.server = &http.Server{
 		Handler:           g.router,
@@ -146,9 +148,9 @@ func (g *router) Serve() error {
 	go func() {
 		if err := g.server.Serve(ln); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				slog.Warn("HTTP Server was shutdown")
+				g.logger.Warn("HTTP Server was shutdown")
 			} else {
-				slog.Error("an error occurred durinng runtime of the HTTP server", sloghelper.Error(err))
+				g.logger.Error("an error occurred durinng runtime of the HTTP server", sloghelper.Error(err))
 			}
 		}
 	}()

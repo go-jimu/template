@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/go-chi/chi/v5 v5.0.8
-	github.com/go-jimu/components v0.3.2
+	github.com/go-jimu/components v0.3.5
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
@@ -15,7 +15,6 @@ require (
 	go.uber.org/fx v1.19.2
 	golang.org/x/crypto v0.7.0
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -35,4 +34,5 @@ require (
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )

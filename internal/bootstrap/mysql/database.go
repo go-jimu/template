@@ -21,16 +21,18 @@ type Option struct {
 	MaxIdleTime  string `json:"max_idle_time" yaml:"max_idle_time" toml:"max_idle_time"`
 }
 
-func NewMySQLDriver(lc fx.Lifecycle, opt Option) *sqlx.DB {
-	var db *sqlx.DB
-	var err error
+func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*sqlx.DB, error) {
+	db, err := sqlx.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
+	if err != nil {
+		return nil, err
+	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			slog.InfoCtx(ctx, "initiating connection to the MySQL server.", slog.Any("option", opt))
-			db, err = sqlx.Connect("mysql",
-				fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true", opt.User, opt.Password, opt.Host, opt.Port, opt.Database))
-			if err != nil {
+			logger.InfoCtx(ctx, "initiating connection to the MySQL server.", slog.Any("option", opt))
+			if err := db.PingContext(ctx); err != nil {
 				return err
 			}
 
@@ -42,6 +44,11 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option) *sqlx.DB {
 			db.SetConnMaxIdleTime(duration)
 			return nil
 		},
+
+		OnStop: func(ctx context.Context) error {
+			logger.WarnCtx(ctx, "shutdown tcp connnection with mysql")
+			return db.Close()
+		},
 	})
-	return db
+	return db, nil
 }

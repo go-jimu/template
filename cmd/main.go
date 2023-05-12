@@ -12,7 +12,6 @@ import (
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
-	"github.com/go-jimu/template/internal/pkg/log"
 	"github.com/go-jimu/template/internal/pkg/option"
 	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
@@ -20,10 +19,10 @@ import (
 
 type Option struct {
 	fx.Out
-	Logger     log.Option      `json:"logger" toml:"logger" yaml:"logger"`
-	MySQL      mysql.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
-	HTTPServer httpsrv.Option  `json:"http-server" toml:"http-server" yaml:"http-server"`
-	Eventbus   eventbus.Option `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
+	MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
+	HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
+	Eventbus   eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 
 func parseOption() (Option, error) {
@@ -38,6 +37,7 @@ func parseOption() (Option, error) {
 func main() {
 	app := fx.New(
 		fx.Provide(parseOption),
+		fx.Provide(sloghelper.NewLog),
 		bootstrap.Module,
 		pkg.Module,
 		user.Module,
@@ -60,5 +60,7 @@ func main() {
 		slog.Error("failed to stop application", sloghelper.Error(err))
 		os.Exit(1)
 	}
+
+	slog.Info("byte")
 	os.Exit(0)
 }
