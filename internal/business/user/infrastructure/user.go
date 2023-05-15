@@ -3,15 +3,16 @@ package infrastructure
 import (
 	"context"
 
+	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/jmoiron/sqlx"
 )
 
 type (
 	userRepository struct {
-		db *sqlx.DB
+		db       *sqlx.DB
+		mediator mediator.Mediator
 	}
 
 	queryUserRepository struct {
@@ -19,8 +20,8 @@ type (
 	}
 )
 
-func NewRepository(db *sqlx.DB) domain.Repository {
-	return &userRepository{db: db}
+func NewRepository(db *sqlx.DB, mediator mediator.Mediator) domain.Repository {
+	return &userRepository{db: db, mediator: mediator}
 }
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, error) {
@@ -53,7 +54,7 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 			return err
 		}
 	}
-	user.Events.Raise(eventbus.Default())
+	user.Events.Raise(ur.mediator)
 	return nil
 }
 

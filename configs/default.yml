@@ -3,6 +3,7 @@ logger:
   output: console
 eventbus:
   concurrent: 10
+  timeout: 10s
 mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}

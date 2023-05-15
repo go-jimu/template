@@ -5,13 +5,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/bootstrap"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/business/user"
-	"github.com/go-jimu/template/internal/pkg"
-	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/option"
 	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
@@ -22,7 +21,7 @@ type Option struct {
 	Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
 	MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
 	HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
-	Eventbus   eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 
 func parseOption() (Option, error) {
@@ -38,8 +37,9 @@ func main() {
 	app := fx.New(
 		fx.Provide(parseOption),
 		fx.Provide(sloghelper.NewLog),
+		fx.Provide(mediator.NewInMemMediator),
+		fx.Invoke(mediator.SetDefault),
 		bootstrap.Module,
-		pkg.Module,
 		user.Module,
 		fx.NopLogger,
 	)
@@ -61,6 +61,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("byte")
+	slog.Info("bye")
 	os.Exit(0)
 }
