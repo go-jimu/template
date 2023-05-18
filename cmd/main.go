@@ -5,13 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/bootstrap"
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/business/user"
-	"github.com/go-jimu/template/internal/pkg/option"
 	"go.uber.org/fx"
 	"golang.org/x/exp/slog"
 )
@@ -26,11 +26,8 @@ type Option struct {
 
 func parseOption() (Option, error) {
 	opt := new(Option)
-	conf := option.Load()
-	if err := conf.Scan(opt); err != nil {
-		return Option{}, err
-	}
-	return *opt, nil
+	err := loader.Load(opt)
+	return *opt, err
 }
 
 func main() {
