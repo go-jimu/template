@@ -2,6 +2,7 @@ package transport
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,7 +11,6 @@ import (
 	"github.com/go-jimu/template/internal/bootstrap/httpsrv/binding"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/pkg/bytesconv"
-	"golang.org/x/exp/slog"
 )
 
 type controller struct {

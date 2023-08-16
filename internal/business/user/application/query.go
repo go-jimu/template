@@ -2,9 +2,9 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/go-jimu/components/sloghelper"
-	"golang.org/x/exp/slog"
 )
 
 type (
@@ -34,12 +34,12 @@ func (h *FindUserListHandler) Handle(ctx context.Context, logger *slog.Logger, r
 
 	total, err := h.readModel.CountUserNumber(ctx, req.Name)
 	if err != nil {
-		logger.ErrorCtx(ctx, "failed to count users", sloghelper.Error(err))
+		logger.ErrorContext(ctx, "failed to count users", sloghelper.Error(err))
 		return nil, err
 	}
 	users, err := h.readModel.FindUserList(ctx, req.Name, req.PageSize, req.Page*(req.PageSize-1))
 	if err != nil {
-		logger.ErrorCtx(ctx, "failed to find user", sloghelper.Error(err))
+		logger.ErrorContext(ctx, "failed to find user", sloghelper.Error(err))
 		return nil, err
 	}
 	return &QueryFindUserListResponse{Total: total, Users: users}, nil

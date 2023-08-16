@@ -1,12 +1,12 @@
 package httpsrv
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-jimu/components/sloghelper"
-	"golang.org/x/exp/slog"
 )
 
 type logEntry struct {
@@ -22,7 +22,7 @@ func newLogEntry(log *slog.Logger, r *http.Request) middleware.LogEntry {
 }
 
 func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
-	le.log.InfoCtx(le.req.Context(), "request complete",
+	le.log.InfoContext(le.req.Context(), "request complete",
 		slog.String("client_ip", le.req.RemoteAddr),
 		slog.Group("request", slog.String("method", le.req.Method), slog.String("path", le.req.URL.Path), slog.String("query", le.req.URL.RawQuery)),
 		slog.Group("response", slog.Int("status_code", status), slog.Int("bytes_lenght", bytes)),
@@ -31,7 +31,7 @@ func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Du
 }
 
 func (le *logEntry) Panic(v interface{}, stack []byte) {
-	le.log.ErrorCtx(le.req.Context(), "broken request", slog.Any("panic", v))
+	le.log.ErrorContext(le.req.Context(), "broken request", slog.Any("panic", v))
 }
 
 func CarryLog() func(http.Handler) http.Handler {

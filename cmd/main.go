@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/business/user"
 	"go.uber.org/fx"
-	"golang.org/x/exp/slog"
 )
 
 type Option struct {
@@ -44,7 +44,7 @@ func main() {
 	defer cancel()
 
 	if err := app.Start(startCtx); err != nil {
-		slog.ErrorCtx(startCtx, "failed to start application", sloghelper.Error(err))
+		slog.ErrorContext(startCtx, "failed to start application", sloghelper.Error(err))
 		os.Exit(1)
 	}
 

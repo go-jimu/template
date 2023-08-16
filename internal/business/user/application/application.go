@@ -2,11 +2,11 @@ package application
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	"golang.org/x/exp/slog"
 )
 
 type Queries struct {
@@ -46,11 +46,11 @@ func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepo
 func (app *Application) Get(ctx context.Context, logger *slog.Logger, uid string) (*User, error) {
 	entity, err := app.repo.Get(ctx, uid)
 	if err != nil {
-		logger.ErrorCtx(ctx, "failed to get user", sloghelper.Error(err))
+		logger.ErrorContext(ctx, "failed to get user", sloghelper.Error(err))
 		return nil, err
 	}
 	if err := entity.Validate(); err != nil {
-		logger.ErrorCtx(ctx, "bad user entity", sloghelper.Error(err))
+		logger.ErrorContext(ctx, "bad user entity", sloghelper.Error(err))
 		return nil, err
 	}
 	dto, _ := assembleDomainUser(entity)
