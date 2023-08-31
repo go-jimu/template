@@ -1,4 +1,4 @@
-FROM golang:1.20-bullseye as builder
+FROM golang:1.21-bookworm as builder
 WORKDIR /go/src
 COPY . /go/src/
 RUN set -e \
@@ -6,7 +6,7 @@ RUN set -e \
     && go mod download \
     && go build -o template cmd/main.go
 
-FROM debian:bullseye
+FROM debian:bookworm
 WORKDIR /app
 COPY --from=builder /go/src/template .
 COPY ./configs /app/configs
