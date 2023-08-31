@@ -3,6 +3,7 @@ package httpsrv
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/components/sloghelper"
 	"go.uber.org/fx"
-	"golang.org/x/exp/slog"
 )
 
 type (

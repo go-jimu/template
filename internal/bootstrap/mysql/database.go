@@ -3,12 +3,12 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/fx"
-	"golang.org/x/exp/slog"
 )
 
 type Option struct {
@@ -31,7 +31,7 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*sqlx.DB,
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			logger.InfoCtx(ctx, "initiating connection to the MySQL server.", slog.Any("option", opt))
+			logger.InfoContext(ctx, "initiating connection to the MySQL server.", slog.Any("option", opt))
 			if err := db.PingContext(ctx); err != nil {
 				return err
 			}

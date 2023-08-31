@@ -14,7 +14,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.7
 	go.uber.org/fx v1.19.2
 	golang.org/x/crypto v0.7.0
-	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea
 	gopkg.in/yaml.v3 v3.0.1
 )
 
