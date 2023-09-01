@@ -1,6 +1,7 @@
 package httpsrv
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -31,7 +32,8 @@ func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Du
 }
 
 func (le *logEntry) Panic(v interface{}, stack []byte) {
-	le.log.ErrorContext(le.req.Context(), "broken request", slog.Any("panic", v))
+	le.log.ErrorContext(le.req.Context(), "broken request",
+		slog.String("stack", string(stack)), slog.String("panic", fmt.Sprintf("%+v", v)))
 }
 
 func CarryLog() func(http.Handler) http.Handler {
