@@ -8,8 +8,8 @@ github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=
 github.com/go-chi/chi/v5 v5.0.10 h1:rLz5avzKpjqxrYwXNfmjkrYYXOyLJd37pz53UFHC6vk=
 github.com/go-chi/chi/v5 v5.0.10/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
-github.com/go-jimu/components v0.5.1 h1:ECJp6UJJaB6t4At2eo/C+9P7RD3p8EgbuqWG4V9GbM8=
-github.com/go-jimu/components v0.5.1/go.mod h1:/F6QnODbPifbbDjktgQKV5pgOA7ZERTnJsc0DuZDXlY=
+github.com/go-jimu/components v0.5.2 h1:3iYTSXGsO36n86JY49NyEiwKP6CxV43IXrg6Fgmex50=
+github.com/go-jimu/components v0.5.2/go.mod h1:/F6QnODbPifbbDjktgQKV5pgOA7ZERTnJsc0DuZDXlY=
 github.com/go-playground/assert/v2 v2.2.0 h1:JvknZsQTYeFEAhQwI4qEt9cyV5ONwRHC+lYKSsYSR8s=
 github.com/go-playground/assert/v2 v2.2.0/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
 github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=
