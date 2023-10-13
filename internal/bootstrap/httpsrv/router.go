@@ -151,7 +151,7 @@ func (g *router) Serve() error {
 			g.logger.Warn("HTTP Server was shutdown")
 			return
 		}
-		g.logger.Error("an error occurred durinng runtime of the HTTP server", sloghelper.Error(err))
+		g.logger.Error("an error occurred during runtime of the HTTP server", sloghelper.Error(err))
 	}()
 
 	return nil
