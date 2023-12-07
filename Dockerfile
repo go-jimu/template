@@ -4,7 +4,7 @@ COPY . /go/src/
 RUN set -e \
     && export GOPROXY=https://goproxy.cn,direct \
     && go mod download \
-    && go build -o template cmd/main.go
+    && go build -ldflags "-w -s" -o template cmd/main.go
 
 FROM debian:bookworm
 WORKDIR /app
