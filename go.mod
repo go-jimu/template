@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/go-chi/chi/v5 v5.0.10
-	github.com/go-jimu/components v0.5.3
+	github.com/go-jimu/components v0.5.4
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
@@ -18,10 +18,10 @@ require (
 )
 
 require (
+	dario.cat/mergo v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.2.2 // indirect
 	github.com/lib/pq v1.10.2 // indirect
