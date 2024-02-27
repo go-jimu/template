@@ -28,6 +28,9 @@ func (h *FindUserListHandler) Handle(ctx context.Context, logger *slog.Logger, r
 	if req.PageSize > 100 {
 		req.PageSize = 100
 	}
+	if req.PageSize == 0 {
+		req.PageSize = 20
+	}
 	if req.Page == 0 {
 		req.Page = 1
 	}

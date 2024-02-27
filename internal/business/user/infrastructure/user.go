@@ -6,27 +6,30 @@ import (
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	"github.com/jmoiron/sqlx"
+	"github.com/uptrace/bun"
 )
 
 type (
 	userRepository struct {
-		db       *sqlx.DB
+		db       *bun.DB
 		mediator mediator.Mediator
 	}
 
 	queryUserRepository struct {
-		db *sqlx.DB
+		db *bun.DB
 	}
 )
 
-func NewRepository(db *sqlx.DB, mediator mediator.Mediator) domain.Repository {
+var _ domain.Repository = (*userRepository)(nil)
+var _ application.QueryRepository = (*queryUserRepository)(nil)
+
+func NewRepository(db *bun.DB, mediator mediator.Mediator) domain.Repository {
 	return &userRepository{db: db, mediator: mediator}
 }
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, error) {
 	do := new(User)
-	err := ur.db.GetContext(ctx, do, "select * from user where id=? and deleted=0 limit 1", uid)
+	err := ur.db.NewSelect().Model(do).Where("id = ? AND deleted = 0", uid).Limit(1).Scan(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -44,13 +47,14 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 	}
 
 	if user.Version == 0 {
-		if _, err := ur.db.NamedExecContext(ctx,
-			"INSERT INTO user (id, name, password, email, version) VALUES (:id, :name, :password, :email, 1)", data); err != nil {
+		_, err := ur.db.NewInsert().Model(data).Exec(ctx)
+		if err != nil {
 			return err
 		}
 	} else {
-		if _, err := ur.db.NamedExecContext(ctx,
-			"UPDATE user SET name=:name, password=:password, email=:email, version=version+1 where id=:id and deleted=0 and version=:version", data); err != nil {
+		_, err := ur.db.NewUpdate().Model(data).Where("id = ? AND deleted = 0", data.ID).
+			Column("name", "password", "email", "version").Set("version=version+1").Exec(ctx)
+		if err != nil {
 			return err
 		}
 	}
@@ -58,13 +62,13 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
-func NewQueryRepository(db *sqlx.DB) application.QueryRepository {
+func NewQueryRepository(db *bun.DB) application.QueryRepository {
 	return &queryUserRepository{db: db}
 }
 
 func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) (int, error) {
 	ret := make([]int, 1)
-	err := q.db.SelectContext(ctx, &ret, "select count(1) from user where name like ? and deleted=0 ;", "%"+name+"%")
+	err := q.db.NewRaw("select count(1) FROM user WHERE name like ? and deleted = 0", "%"+name+"%").Scan(ctx, &ret)
 	if err != nil {
 		return 0, err
 	}
@@ -73,7 +77,7 @@ func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) 
 
 func (q *queryUserRepository) FindUserList(ctx context.Context, name string, limit, offset int) ([]*application.User, error) {
 	ret := make([]*User, 0)
-	err := q.db.SelectContext(ctx, &ret, "select * from user where name like ? and deleted=0 order by ctime limit ? offset ?", "%"+name+"%", limit, offset)
+	err := q.db.NewRaw("select * from user where name like ? and deleted=0 order by ctime limit ? offset ?", "%"+name+"%", limit, offset).Scan(ctx, &ret)
 	if err != nil {
 		return nil, err
 	}

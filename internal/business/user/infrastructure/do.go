@@ -2,15 +2,18 @@ package infrastructure
 
 import (
 	"time"
+
+	"github.com/uptrace/bun"
 )
 
 type User struct {
-	ID       string    `db:"id"`
-	Name     string    `db:"name"`
-	Password []byte    `db:"password" copier:"HashedPassword"`
-	Email    string    `db:"email"`
-	Version  int       `db:"version"`
-	Deleted  bool      `db:"deleted"`
-	CTime    time.Time `db:"ctime"`
-	MTime    time.Time `db:"mtime"`
+	bun.BaseModel `bun:"table:user,alias:u"`
+	ID            string       `bun:"id,pk"`
+	Name          string       `bun:"name"`
+	Password      []byte       `bun:"password" copier:"HashedPassword"`
+	Email         string       `bun:"email"`
+	Version       int          `bun:"version"`
+	Deleted       bool         `bun:"deleted"`
+	CTime         bun.NullTime `bun:"ctime"`
+	MTime         time.Time    `bun:"mtime"`
 }
