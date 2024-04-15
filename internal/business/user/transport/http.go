@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
-	"github.com/go-jimu/template/internal/bootstrap/httpsrv/binding"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/pkg/bytesconv"
+	"github.com/go-jimu/template/internal/pkg/httpsrv"
+	"github.com/go-jimu/template/internal/pkg/httpsrv/binding"
 )
 
 type controller struct {

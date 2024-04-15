@@ -1,10 +1,10 @@
 package user
 
 import (
-	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
 	"github.com/go-jimu/template/internal/business/user/application"
-	"github.com/go-jimu/template/internal/business/user/application/transport"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
+	"github.com/go-jimu/template/internal/business/user/transport"
+	"github.com/go-jimu/template/internal/pkg/httpsrv"
 	"go.uber.org/fx"
 )
 

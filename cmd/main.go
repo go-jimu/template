@@ -9,10 +9,10 @@ import (
 	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/bootstrap"
-	"github.com/go-jimu/template/internal/bootstrap/httpsrv"
-	"github.com/go-jimu/template/internal/bootstrap/mysql"
 	"github.com/go-jimu/template/internal/business/user"
+	"github.com/go-jimu/template/internal/pkg"
+	"github.com/go-jimu/template/internal/pkg/httpsrv"
+	"github.com/go-jimu/template/internal/pkg/mysql"
 	"go.uber.org/fx"
 )
 
@@ -36,7 +36,7 @@ func main() {
 		fx.Provide(sloghelper.NewLog),
 		fx.Provide(mediator.NewInMemMediator),
 		fx.Invoke(mediator.SetDefault),
-		bootstrap.Module,
+		pkg.Module,
 		user.Module,
 		fx.NopLogger,
 	)
