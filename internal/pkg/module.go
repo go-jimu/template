@@ -7,7 +7,7 @@ import (
 )
 
 var Module = fx.Module(
-	"internal/pkg",
+	"internal.pkg",
 	fx.Provide(httpsrv.NewHTTPServer),
 	fx.Provide(mysql.NewMySQLDriver),
 )
