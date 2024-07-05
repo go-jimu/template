@@ -3,9 +3,9 @@ module github.com/go-jimu/template
 go 1.21
 
 require (
-	github.com/go-chi/chi/v5 v5.0.12
-	github.com/go-jimu/components v0.5.4
-	github.com/go-playground/validator/v10 v10.19.0
+	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-jimu/components v0.5.5
+	github.com/go-playground/validator/v10 v10.22.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/copier v0.4.0
@@ -14,8 +14,8 @@ require (
 	github.com/uptrace/bun v1.2.1
 	github.com/uptrace/bun/dialect/mysqldialect v1.2.1
 	github.com/uptrace/bun/extra/bunslog v1.2.1
-	go.uber.org/fx v1.21.0
-	golang.org/x/crypto v0.22.0
+	go.uber.org/fx v1.22.1
+	golang.org/x/crypto v0.25.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -37,7 +37,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
