@@ -26,7 +26,7 @@ func (le *logEntry) Write(status, bytes int, header http.Header, elapsed time.Du
 	le.log.InfoContext(le.req.Context(), "request complete",
 		slog.String("client_ip", le.req.RemoteAddr),
 		slog.Group("request", slog.String("method", le.req.Method), slog.String("path", le.req.URL.Path), slog.String("query", le.req.URL.RawQuery)),
-		slog.Group("response", slog.Int("status_code", status), slog.Int("bytes_lenght", bytes)),
+		slog.Group("response", slog.Int("status_code", status), slog.Int("bytes_length", bytes)),
 		slog.String("elapsed", elapsed.String()),
 	)
 }
