@@ -11,6 +11,7 @@ import (
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
+	"github.com/go-jimu/template/internal/pkg/grpcsrv"
 	"github.com/go-jimu/template/internal/pkg/httpsrv"
 	"github.com/go-jimu/template/internal/pkg/mysql"
 	"go.uber.org/fx"
@@ -21,6 +22,7 @@ type Option struct {
 	Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
 	MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
 	HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
+	GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
 	Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 

@@ -62,7 +62,7 @@ const (
 var readTimeout = 3 * time.Second
 
 func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Controller) HTTPServer {
-	slog.Info("create a new HTTP server", slog.Any("option", opt))
+	logger.Info("create a new HTTP server", slog.Any("option", opt))
 	g := &router{
 		logger:      logger,
 		router:      chi.NewRouter(),
@@ -77,11 +77,15 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return g.Serve()
+			go g.Serve()
+			return nil
 		},
 
 		OnStop: func(ctx context.Context) error {
-			return g.server.Shutdown(ctx)
+			if g.server != nil {
+				return g.server.Shutdown(ctx)
+			}
+			return nil
 		},
 	})
 
@@ -138,21 +142,18 @@ func (g *router) Serve() error {
 		return err
 	}
 
-	g.logger.Info("HTTP server is running", slog.String("address", g.option.Addr))
+	g.logger.Info("the HTTP server is running", slog.String("address", g.option.Addr))
 
 	g.server = &http.Server{
 		Handler:           g.router,
 		ReadHeaderTimeout: readTimeout, // https://cwe.mitre.org/data/definitions/400.html
 	}
 
-	go func() {
-		err := g.server.Serve(ln)
-		if errors.Is(err, http.ErrServerClosed) {
-			g.logger.Warn("HTTP Server was shutdown")
-			return
-		}
-		g.logger.Error("an error occurred during runtime of the HTTP server", sloghelper.Error(err))
-	}()
-
-	return nil
+	err = g.server.Serve(ln)
+	if errors.Is(err, http.ErrServerClosed) {
+		g.logger.Warn("the HTTP server was shutdown")
+		return nil
+	}
+	g.logger.Error("the HTTP server encountered an error while serving", sloghelper.Error(err))
+	return err
 }
