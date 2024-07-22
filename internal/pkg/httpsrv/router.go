@@ -94,7 +94,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 
 func (g *router) With(c Controller) {
 	g.controllers = append(g.controllers, c)
-	g.logger.Info("a new controller is append to HTTP server", slog.String("slug", c.Slug()))
+	g.logger.Info("registered a new HTTP controller", slog.String("slug", c.Slug()))
 }
 
 // chi: all middlewares must be defined before routes on a mux
