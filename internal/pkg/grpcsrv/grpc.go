@@ -7,6 +7,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/go-jimu/components/sloghelper"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 )
