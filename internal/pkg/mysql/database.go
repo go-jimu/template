@@ -10,7 +10,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/mysqldialect"
-	"github.com/uptrace/bun/extra/bunslog"
 	"go.uber.org/fx"
 )
 
@@ -40,10 +39,10 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*bun.DB, 
 	}
 	database.SetConnMaxIdleTime(duration)
 
-	hook := bunslog.NewQueryHook(
-		bunslog.WithQueryLogLevel(slog.LevelInfo),
-		bunslog.WithSlowQueryLogLevel(slog.LevelWarn),
-		bunslog.WithSlowQueryThreshold(3*time.Second),
+	hook := NewQueryHook(
+		WithQueryLogLevel(slog.LevelInfo),
+		WithSlowQueryLogLevel(slog.LevelWarn),
+		WithSlowQueryThreshold(3*time.Second),
 	)
 	database.AddQueryHook(hook)
 

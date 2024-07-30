@@ -14,7 +14,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.1
 	github.com/uptrace/bun v1.2.1
 	github.com/uptrace/bun/dialect/mysqldialect v1.2.1
-	github.com/uptrace/bun/extra/bunslog v1.2.1
 	go.uber.org/fx v1.22.1
 	golang.org/x/crypto v0.25.0
 	google.golang.org/grpc v1.65.0
