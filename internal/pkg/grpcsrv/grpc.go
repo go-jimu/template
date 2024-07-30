@@ -7,6 +7,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/go-jimu/components/sloghelper"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 )
@@ -55,7 +56,11 @@ func (g *grpcSrv) Serve() error {
 		return err
 	}
 	g.logger.Info("gRPC server is running", slog.String("addr", ln.Addr().String()))
-	return g.server.Serve(ln)
+	err = g.server.Serve(ln)
+	if err != nil {
+		g.logger.Error("an error was encounted while the gRPC server was running", sloghelper.Error(err))
+	}
+	return err
 }
 
 func (g *grpcSrv) RegisterService(desc *grpc.ServiceDesc, impl any) {
