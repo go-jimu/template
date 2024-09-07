@@ -18,7 +18,7 @@ var Module = fx.Module(
 	fx.Provide(application.NewApplication),
 	fx.Provide(infrastructure.NewRepository),
 	fx.Invoke(func(srv httpsrv.HTTPServer, controller httpsrv.Controller) {
-		srv.With(controller)
+		srv.Register(controller)
 	}),
 	fx.Invoke(func(g grpc.ServiceRegistrar, impl helloworld.GreeterServer) {
 		helloworld.RegisterGreeterServer(g, impl)

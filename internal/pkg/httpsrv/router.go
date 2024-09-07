@@ -40,7 +40,7 @@ type (
 	}
 
 	HTTPServer interface {
-		With(Controller)
+		Register(Controller)
 		Serve() error
 	}
 
@@ -72,7 +72,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 	}
 
 	for _, controller := range cs {
-		g.With(controller)
+		g.Register(controller)
 	}
 
 	lc.Append(fx.Hook{
@@ -92,7 +92,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 	return g
 }
 
-func (g *router) With(c Controller) {
+func (g *router) Register(c Controller) {
 	g.controllers = append(g.controllers, c)
 	g.logger.Info("registered a new HTTP controller", slog.String("slug", c.Slug()))
 }
