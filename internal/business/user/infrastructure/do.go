@@ -11,9 +11,9 @@ type UserDO struct {
 	Password  []byte       `xorm:"password" copier:"HashedPassword"`
 	Email     string       `xorm:"email"`
 	Version   int          `xorm:"version"`
-	CreatedAt time.Time    `xorm:"ctime,<-"`
-	UpdatedAt time.Time    `xorm:"mtime,<-"`
-	DeletedAt sql.NullTime `xorm:"deleted,<-"`
+	CreatedAt time.Time    `xorm:"created_at <-"`
+	UpdatedAt time.Time    `xorm:"updated_at <-"`
+	DeletedAt sql.NullTime `xorm:"deleted_at <-"`
 }
 
 func (u UserDO) TableName() string {

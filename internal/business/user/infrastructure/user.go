@@ -64,7 +64,7 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 		return nil
 	}
 
-	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email").ID(data.ID).Update(data)
+	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email").Where("id = ?", user.ID).Where("deleted_at IS NULL").Update(data)
 	if err != nil {
 		return err
 	}

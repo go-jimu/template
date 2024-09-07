@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/go-jimu/components/sloghelper"
+	_ "github.com/go-sql-driver/mysql"
 	"go.uber.org/fx"
 	"xorm.io/xorm"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 type Option struct {
@@ -43,8 +43,14 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*xorm.Eng
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			logger.InfoContext(ctx, "connecting to database", slog.Any("option", opt))
-			return engine.PingContext(ctx)
+			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			if err := engine.PingContext(ctx); err != nil {
+				logger.ErrorContext(ctx, "failed to connect to database", slog.Any("option", opt), sloghelper.Error(err))
+				return err
+			}
+			logger.InfoContext(ctx, "connected to database", slog.Any("option", opt))
+			return nil
 		},
 	})
 	return engine, nil

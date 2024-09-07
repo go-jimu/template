@@ -8,7 +8,7 @@ mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}
   user: ${MYSQL_USER:root}
-  password: ${MYSQL_PASSWORD:admin123}
+  password: ${MYSQL_PASSWORD:admin1234}
   database: ${MYSQL_DATABASE:example}
   max_open_conns: 5
   max_idle_conns: 3
