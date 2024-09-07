@@ -10,7 +10,8 @@ mysql:
   user: ${MYSQL_USER:root}
   password: ${MYSQL_PASSWORD:admin123}
   database: ${MYSQL_DATABASE:example}
-  max_open_conns: ${MYSQL_MAX_OPEN_CONNS:5}
+  max_open_conns: 5
+  max_idle_conns: 3
   max_idle_time: ${MYSQL_MAX_IDLE_TIME:60s}
 http-server:
   addr: ":8080"

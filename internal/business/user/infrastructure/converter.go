@@ -7,15 +7,15 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-func convertUserToDO(entity *domain.User) (*User, error) {
-	do := new(User)
+func convertUserToDO(entity *domain.User) (*UserDO, error) {
+	do := new(UserDO)
 	if err := copier.Copy(do, entity); err != nil {
 		return nil, err
 	}
 	return do, nil
 }
 
-func convertDoUser(do *User) (*domain.User, error) {
+func convertUserDO(do *UserDO) (*domain.User, error) {
 	entity := new(domain.User)
 	if err := copier.Copy(entity, do); err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func convertDoUser(do *User) (*domain.User, error) {
 	return entity, nil
 }
 
-func convertDoUserToDTO(do *User) (*application.User, error) {
+func convertUserDOToDTO(do *UserDO) (*application.User, error) {
 	dto := new(application.User)
 	if err := copier.Copy(dto, do); err != nil {
 		return nil, err

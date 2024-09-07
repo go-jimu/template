@@ -1,19 +1,21 @@
 package infrastructure
 
 import (
+	"database/sql"
 	"time"
-
-	"github.com/uptrace/bun"
 )
 
-type User struct {
-	bun.BaseModel `bun:"table:user,alias:u"`
-	ID            string       `bun:"id,pk"`
-	Name          string       `bun:"name"`
-	Password      []byte       `bun:"password" copier:"HashedPassword"`
-	Email         string       `bun:"email"`
-	Version       int          `bun:"version"`
-	Deleted       bool         `bun:"deleted"`
-	CTime         bun.NullTime `bun:"ctime"`
-	MTime         time.Time    `bun:"mtime"`
+type UserDO struct {
+	ID        string       `xorm:"id"`
+	Name      string       `xorm:"name"`
+	Password  []byte       `xorm:"password" copier:"HashedPassword"`
+	Email     string       `xorm:"email"`
+	Version   int          `xorm:"version"`
+	CreatedAt time.Time    `xorm:"ctime,<-"`
+	UpdatedAt time.Time    `xorm:"mtime,<-"`
+	DeletedAt sql.NullTime `xorm:"deleted,<-"`
+}
+
+func (u UserDO) TableName() string {
+	return "user"
 }
