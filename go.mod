@@ -6,7 +6,7 @@ toolchain go1.22.6
 
 require (
 	github.com/go-chi/chi/v5 v5.1.0
-	github.com/go-jimu/components v0.5.13
+	github.com/go-jimu/components v0.5.15
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0

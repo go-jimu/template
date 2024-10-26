@@ -16,8 +16,8 @@ github.com/gabriel-vasile/mimetype v1.4.5 h1:J7wGKdGu33ocBOhGy0z653k/lFKLFDPJMG8
 github.com/gabriel-vasile/mimetype v1.4.5/go.mod h1:ibHel+/kbxn9x2407k1izTA1S81ku1z/DlgOW2QE0M4=
 github.com/go-chi/chi/v5 v5.1.0 h1:acVI1TYaD+hhedDJ3r54HyA6sExp3HfXq7QWEEY/xMw=
 github.com/go-chi/chi/v5 v5.1.0/go.mod h1:DslCQbL2OYiznFReuXYUmQ2hGd1aDpCnlMNITLSKoi8=
-github.com/go-jimu/components v0.5.13 h1:/6dGCJj/dQ36DodC9ckMJD6DzvMrKJqz4h/UwtUpBfQ=
-github.com/go-jimu/components v0.5.13/go.mod h1:zc/qONQCx2V5TnkWd1g1Vf79inVfbO1odqBzIhsQxvw=
+github.com/go-jimu/components v0.5.15 h1:uvaga6YZA8wrOxpxfFMdLNXZOLny9X6jGYCCl7J+XIs=
+github.com/go-jimu/components v0.5.15/go.mod h1:zc/qONQCx2V5TnkWd1g1Vf79inVfbO1odqBzIhsQxvw=
 github.com/go-playground/assert/v2 v2.2.0 h1:JvknZsQTYeFEAhQwI4qEt9cyV5ONwRHC+lYKSsYSR8s=
 github.com/go-playground/assert/v2 v2.2.0/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
 github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=
