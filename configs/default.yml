@@ -8,12 +8,13 @@ mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}
   user: ${MYSQL_USER:root}
-  password: ${MYSQL_PASSWORD:admin1234}
-  database: ${MYSQL_DATABASE:example}
+  password: ${MYSQL_PASSWORD:jimu}
+  database: ${MYSQL_DATABASE:jimu}
   max_open_conns: 5
   max_idle_conns: 3
-  max_idle_time: ${MYSQL_MAX_IDLE_TIME:60s}
+  max_idle_time: ${MYSQL_MAX_IDLE_TIME:30s}
+  max_lifetime: ${MYSQL_MAX_LIFETIME:60s}
 http-server:
-  addr: ":8080"
+  addr: ":80"
 grpc:
-  addr: ":8088"
+  addr: ":8080"

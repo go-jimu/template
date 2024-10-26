@@ -5,9 +5,10 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/go-jimu/components/sloghelper"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/go-jimu/components/sloghelper"
+	"github.com/samber/oops"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 )
@@ -53,11 +54,12 @@ func NewGRPCServ(lc fx.Lifecycle, opt Option, logger *slog.Logger) grpc.ServiceR
 func (g *grpcSrv) Serve() error {
 	ln, err := net.Listen("tcp", g.opt.Addr)
 	if err != nil {
-		return err
+		return oops.With("addr", g.opt.Addr).Wrap(err)
 	}
 	g.logger.Info("gRPC server is running", slog.String("addr", ln.Addr().String()))
 	err = g.server.Serve(ln)
 	if err != nil {
+		err = oops.With("addr", g.opt.Addr).Wrap(err)
 		g.logger.Error("an error was encounted while the gRPC server was running", sloghelper.Error(err))
 	}
 	return err

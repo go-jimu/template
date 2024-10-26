@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/go-jimu/components/sloghelper"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/samber/oops"
 	"go.uber.org/fx"
 	"xorm.io/xorm"
 )
@@ -31,7 +31,7 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*xorm.Eng
 		return nil, err
 	}
 	engine.SetLogger(NewXormSlog(logger))
-	engine.ShowSQL(true)
+	engine.ShowSQL(false)
 	engine.SetMaxIdleConns(opt.MaxIdleConns)
 	engine.SetMaxOpenConns(opt.MaxOpenConns)
 	if duration, err := time.ParseDuration(opt.MaxIdleTime); err == nil {
@@ -46,8 +46,7 @@ func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*xorm.Eng
 			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
 			if err := engine.PingContext(ctx); err != nil {
-				logger.ErrorContext(ctx, "failed to connect to database", slog.Any("option", opt), sloghelper.Error(err))
-				return err
+				return oops.With("dsn", dsn).Wrap(err)
 			}
 			logger.InfoContext(ctx, "connected to database", slog.Any("option", opt))
 			return nil

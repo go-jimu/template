@@ -12,6 +12,7 @@ import (
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/database"
+	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/grpcsrv"
 	"github.com/go-jimu/template/internal/pkg/httpsrv"
 	"go.uber.org/fx"
@@ -36,8 +37,7 @@ func main() {
 	app := fx.New(
 		fx.Provide(parseOption),
 		fx.Provide(sloghelper.NewLog),
-		fx.Provide(mediator.NewInMemMediator),
-		fx.Invoke(mediator.SetDefault),
+		fx.Provide(eventbus.NewMediator),
 		pkg.Module,
 		user.Module,
 		fx.NopLogger,

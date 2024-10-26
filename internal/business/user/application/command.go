@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/domain"
 )
@@ -33,5 +34,6 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, logger *slog.
 		return err
 	}
 	logger.InfoContext(ctx, "password is changed")
+	entity.Events.Raise(mediator.Default())
 	return nil
 }

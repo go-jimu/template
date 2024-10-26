@@ -5,12 +5,13 @@ import (
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/jinzhu/copier"
+	"github.com/samber/oops"
 )
 
 func convertUserToDO(entity *domain.User) (*UserDO, error) {
 	do := new(UserDO)
 	if err := copier.Copy(do, entity); err != nil {
-		return nil, err
+		return nil, oops.Wrap(err)
 	}
 	return do, nil
 }
@@ -18,7 +19,7 @@ func convertUserToDO(entity *domain.User) (*UserDO, error) {
 func convertUserDO(do *UserDO) (*domain.User, error) {
 	entity := new(domain.User)
 	if err := copier.Copy(entity, do); err != nil {
-		return nil, err
+		return nil, oops.Wrap(err)
 	}
 	entity.Events = mediator.NewEventCollection()
 	return entity, nil
@@ -27,7 +28,7 @@ func convertUserDO(do *UserDO) (*domain.User, error) {
 func convertUserDOToDTO(do *UserDO) (*application.User, error) {
 	dto := new(application.User)
 	if err := copier.Copy(dto, do); err != nil {
-		return nil, err
+		return nil, oops.Wrap(err)
 	}
 	return dto, nil
 }
