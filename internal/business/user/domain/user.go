@@ -21,7 +21,7 @@ type User struct {
 
 func NewUser(name, password, email string) (*User, error) {
 	user := &User{
-		ID:     uuid.NewString(),
+		ID:     uuid.Must(uuid.NewV7()).String(),
 		Name:   name,
 		Email:  email,
 		Events: mediator.NewEventCollection(),
