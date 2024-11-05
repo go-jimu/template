@@ -1,9 +1,12 @@
 package infrastructure
 
 import (
+	"time"
+
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
+	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/jinzhu/copier"
 	"github.com/samber/oops"
 )
@@ -12,6 +15,9 @@ func convertUserToDO(entity *domain.User) (*UserDO, error) {
 	do := new(UserDO)
 	if err := copier.Copy(do, entity); err != nil {
 		return nil, oops.Wrap(err)
+	}
+	if entity.Deleted {
+		do.DeletedAt = database.NewNullTimestamp(time.Now())
 	}
 	return do, nil
 }
@@ -22,6 +28,11 @@ func convertUserDO(do *UserDO) (*domain.User, error) {
 		return nil, oops.Wrap(err)
 	}
 	entity.Events = mediator.NewEventCollection()
+	entity.CreatedAt = do.CreatedAt.T
+	entity.UpdatedAt = do.UpdatedAt.T
+	if do.DeletedAt.Valid {
+		entity.Deleted = true
+	}
 	return entity, nil
 }
 

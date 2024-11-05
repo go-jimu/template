@@ -14,11 +14,11 @@ func BuildDBConnectionForTest(tb testing.TB) *xorm.Engine {
 	db, err := database.NewMySQLDriver(
 		lc,
 		database.Option{
-			Host:         "localhost",
+			Host:         "127.0.0.1",
 			Port:         3306,
 			User:         "root",
-			Password:     "admin1234",
-			Database:     "example",
+			Password:     "jimu",
+			Database:     "jimu",
 			MaxOpenConns: 5,
 			MaxIdleConns: 3,
 			MaxIdleTime:  "10m",
@@ -46,6 +46,7 @@ func BuildDBConnectionForTest(tb testing.TB) *xorm.Engine {
 // 		"123456",
 // 		"test@example.com",
 // 	)
+
 // 	assert.NoError(t, err)
 // 	assert.NotNil(t, user)
 
@@ -55,50 +56,17 @@ func BuildDBConnectionForTest(tb testing.TB) *xorm.Engine {
 // 	got, err := ur.Get(context.Background(), user.ID)
 // 	assert.NoError(t, err)
 // 	assert.NotNil(t, got)
+// 	t.Log(got.CreatedAt, got.UpdatedAt, got.Deleted)
 
-// 	user.Version++
-// 	assert.Equal(t, user.ID, got.ID)
-// 	assert.Equal(t, user.Name, got.Name)
-// 	assert.EqualValues(t, user.HashedPassword, got.HashedPassword)
-// 	assert.Equal(t, user.Email, got.Email)
-// }
-
-// func TestUserRepository_Update(t *testing.T) {
-// 	db := BuildDBConnectionForTest(t)
-// 	ur := infrastructure.NewRepository(db, mediator.Default())
-// 	user, err := ur.Get(context.Background(), "f753e5f5-3879-4d62-b45f-83dfc3ba552c")
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, user)
-
-// 	defer func() {
-// 		user.ChangePassword("test", "123456")
-// 		user.Version++
-// 		err = ur.Save(context.Background(), user)
-// 		assert.NoError(t, err)
-// 	}()
-
-// 	err = user.ChangePassword("123455", "test")
+// 	got.Deleted = true
+// 	err = ur.Save(context.Background(), got)
 // 	assert.NoError(t, err)
 
-// 	err = ur.Save(context.Background(), user)
-// 	assert.NoError(t, err)
-// }
-
-// func TestQueryUserRepository_CountUserNumber(t *testing.T) {
-// 	db := BuildDBConnectionForTest(t)
-// 	ur := infrastructure.NewQueryRepository(db)
-// 	count, err := ur.CountUserNumber(context.Background(), "test")
-// 	assert.NoError(t, err)
-// 	assert.Greater(t, count, 1)
-// }
-
-// func TestQueryUserRepository_ListUser(t *testing.T) {
-// 	db := BuildDBConnectionForTest(t)
-// 	ur := infrastructure.NewQueryRepository(db)
-// 	users, err := ur.FindUserList(context.Background(), "test", 20, 0)
-// 	assert.NoError(t, err)
-// 	assert.Greater(t, len(users), 1)
-// 	for _, user := range users {
-// 		assert.True(t, strings.Contains(user.Name, "test"))
-// 	}
+// 	got, err = ur.Get(context.Background(), user.ID)
+// 	assert.NotNil(t, err)
+// 	// user.Version++
+// 	// assert.Equal(t, user.ID, got.ID)
+// 	// assert.Equal(t, user.Name, got.Name)
+// 	// assert.EqualValues(t, user.HashedPassword, got.HashedPassword)
+// 	// assert.Equal(t, user.Email, got.Email)
 // }

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"sync/atomic"
+	"time"
 
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/pkg/validator"
@@ -17,6 +18,9 @@ type User struct {
 	Events         mediator.EventCollection
 	Version        int
 	Dirty          int32
+	Deleted        bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func NewUser(name, password, email string) (*User, error) {

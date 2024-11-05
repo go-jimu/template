@@ -3,10 +3,12 @@ package infrastructure
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
+	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/samber/oops"
 	"xorm.io/xorm"
 )
@@ -54,6 +56,9 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 	}
 
 	if user.Version == 0 {
+		now := time.Now()
+		data.CreatedAt = database.NewTimestamp(now)
+		data.UpdatedAt = database.NewTimestamp(now)
 		affected, err := ur.engine.Context(ctx).Insert(data)
 		if err != nil {
 			return oops.With("user_id", user.ID).Wrap(err)
@@ -64,7 +69,8 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 		return nil
 	}
 
-	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email").Where("id = ?", user.ID).Where("deleted_at IS NULL").Update(data)
+	data.UpdatedAt = database.NewTimestamp(time.Now())
+	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email", "updated_at", "deleted_at").Where("id = ?", user.ID).Where("deleted_at IS NULL").Update(data)
 	if err != nil {
 		return oops.With("user_id", user.ID).Wrap(err)
 	}

@@ -10,10 +10,10 @@ mysql:
   user: ${MYSQL_USER:root}
   password: ${MYSQL_PASSWORD:jimu}
   database: ${MYSQL_DATABASE:jimu}
-  max_open_conns: 5
-  max_idle_conns: 3
-  max_idle_time: ${MYSQL_MAX_IDLE_TIME:30s}
-  max_lifetime: ${MYSQL_MAX_LIFETIME:60s}
+  max_open_conns: 12
+  max_idle_conns: 12
+  max_idle_time: ${MYSQL_MAX_IDLE_TIME:5m}
+  max_lifetime: ${MYSQL_MAX_LIFETIME:30m}
 http-server:
   addr: ":80"
 grpc:
