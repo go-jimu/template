@@ -11,5 +11,5 @@
 Use [gonew](https://go.dev/blog/gonew) to install this template.
 
 ```bash
-gonew github.com/go-jimu/template example.com/foobar/project
+gonew github.com/go-jimu/template@latest example.com/foobar/project
 ```
