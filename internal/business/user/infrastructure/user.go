@@ -35,7 +35,7 @@ func NewRepository(engine *xorm.Engine, mediator mediator.Mediator) domain.Repos
 
 func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, error) {
 	do := new(UserDO)
-	has, err := ur.engine.Context(ctx).Where("id = ? AND deleted_at is null", uid).Get(do)
+	has, err := ur.engine.Context(ctx).Where("id = ? AND deleted_at = 0", uid).Get(do)
 	if err != nil {
 		return nil, oops.With("user_id", uid).Wrap(err)
 	}
@@ -59,6 +59,7 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 		now := time.Now()
 		data.CreatedAt = database.NewTimestamp(now)
 		data.UpdatedAt = database.NewTimestamp(now)
+		data.DeletedAt = database.NewTimestamp(database.UnixEpoch)
 		affected, err := ur.engine.Context(ctx).Insert(data)
 		if err != nil {
 			return oops.With("user_id", user.ID).Wrap(err)
@@ -70,7 +71,7 @@ func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 	}
 
 	data.UpdatedAt = database.NewTimestamp(time.Now())
-	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email", "updated_at", "deleted_at").Where("id = ?", user.ID).Where("deleted_at IS NULL").Update(data)
+	affected, err := ur.engine.Context(ctx).Cols("name", "password", "email", "updated_at", "deleted_at").Where("id = ?", user.ID).Where("deleted_at = 0").Update(data)
 	if err != nil {
 		return oops.With("user_id", user.ID).Wrap(err)
 	}
@@ -86,7 +87,7 @@ func NewQueryRepository(engine *xorm.Engine) application.QueryRepository {
 
 func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) (int, error) {
 	db := new(UserDO)
-	count, err := q.engine.Context(ctx).Where("name like ? and deleted_at IS NULL", "%"+name+"%").Count(db)
+	count, err := q.engine.Context(ctx).Where("name like ? and deleted_at = 0", "%"+name+"%").Count(db)
 	if err != nil {
 		return 0, oops.With("name", name).Wrap(err)
 	}
@@ -95,7 +96,7 @@ func (q *queryUserRepository) CountUserNumber(ctx context.Context, name string) 
 
 func (q *queryUserRepository) FindUserList(ctx context.Context, name string, limit, offset int) ([]*application.User, error) {
 	users := make([]*UserDO, 0)
-	err := q.engine.Context(ctx).Where("name like ? and deleted_at IS NULL", "%"+name+"%").Limit(limit, offset).Find(&users)
+	err := q.engine.Context(ctx).Where("name like ? and deleted_at = 0", "%"+name+"%").Limit(limit, offset).Find(&users)
 	if err != nil {
 		return nil, oops.With("name", name).Wrap(err)
 	}

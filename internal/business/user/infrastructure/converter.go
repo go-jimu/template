@@ -16,8 +16,11 @@ func convertUserToDO(entity *domain.User) (*UserDO, error) {
 	if err := copier.Copy(do, entity); err != nil {
 		return nil, oops.Wrap(err)
 	}
+	do.UpdatedAt = database.NewTimestamp(time.Now())
 	if entity.Deleted {
-		do.DeletedAt = database.NewNullTimestamp(time.Now())
+		do.DeletedAt = database.NewTimestamp(time.Now())
+	} else {
+		do.DeletedAt = database.NewTimestamp(database.UnixEpoch)
 	}
 	return do, nil
 }
@@ -28,9 +31,9 @@ func convertUserDO(do *UserDO) (*domain.User, error) {
 		return nil, oops.Wrap(err)
 	}
 	entity.Events = mediator.NewEventCollection()
-	entity.CreatedAt = do.CreatedAt.T
-	entity.UpdatedAt = do.UpdatedAt.T
-	if do.DeletedAt.Valid {
+	entity.CreatedAt = do.CreatedAt.Time
+	entity.UpdatedAt = do.UpdatedAt.Time
+	if !do.DeletedAt.Time.IsZero() {
 		entity.Deleted = true
 	}
 	return entity, nil

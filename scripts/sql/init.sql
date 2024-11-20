@@ -6,6 +6,6 @@ CREATE TABLE `user` (
   `version` smallint unsigned NOT NULL DEFAULT '0',
   `created_at` bigint unsigned NOT NULL DEFAULT '0',
   `updated_at` bigint unsigned NOT NULL DEFAULT '0',
-  `deleted_at` bigint unsigned DEFAULT NULL,
+  `deleted_at` bigint unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
