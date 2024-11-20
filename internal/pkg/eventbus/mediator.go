@@ -16,8 +16,8 @@ func NewMediator(opt mediator.Options, logger *slog.Logger) mediator.Mediator {
 		logger.Warn("find orphan event", slog.String("event_kind", string(event.Kind())))
 	})
 	m.WithGenContext(func(ctx context.Context, event mediator.Event) context.Context {
-		logger = logger.With(slog.String("event_kind", string(event.Kind())))
-		ctx = sloghelper.NewContext(ctx, logger)
+		eventLogger := logger.With(slog.String("event_kind", string(event.Kind())))
+		ctx = sloghelper.NewContext(ctx, eventLogger)
 		return ctx
 	})
 
