@@ -51,11 +51,11 @@ func NewNullTimestamp(t time.Time) NullTimestamp {
 func (ts *Timestamp) Scan(src any) error {
 	switch src.(type) {
 	case int64:
-		ts.Time = time.UnixMicro(src.(int64))
+		ts.Time = time.UnixMilli(src.(int64))
 		return nil
 
 	case nil:
-		return nil
+		return ErrUnexpectedType
 
 	default:
 		return ErrUnexpectedType
@@ -81,7 +81,7 @@ func (ts *NullTimestamp) Scan(src any) error {
 
 	case int64:
 		ts.Valid = true
-		ts.Time = time.UnixMicro(src.(int64))
+		ts.Time = time.UnixMilli(src.(int64))
 		return nil
 
 	default:
