@@ -12,4 +12,4 @@ breaking:
   ignore_unstable_packages: true
 modules:
 - path: proto
-  name: go.inovance.org/tpe/gengo
+  name: github.com/go-jimu/template
