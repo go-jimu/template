@@ -51,6 +51,7 @@ type (
 		root        Controller
 		controllers []Controller
 		server      *http.Server
+		ln          net.Listener
 	}
 )
 
@@ -77,6 +78,15 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
+			g.lazyLoad()
+
+			ln, err := net.Listen("tcp", g.option.Addr)
+			if err != nil {
+				return err
+			}
+			g.ln = ln
+			g.logger.Info("the HTTP server is running", slog.String("address", g.option.Addr))
+
 			go g.Serve()
 			return nil
 		},
@@ -135,21 +145,12 @@ func (g *router) lazyLoad() {
 }
 
 func (g *router) Serve() error {
-	g.lazyLoad()
-
-	ln, err := net.Listen("tcp", g.option.Addr)
-	if err != nil {
-		return err
-	}
-
-	g.logger.Info("the HTTP server is running", slog.String("address", g.option.Addr))
-
 	g.server = &http.Server{
 		Handler:           g.router,
 		ReadHeaderTimeout: readTimeout, // https://cwe.mitre.org/data/definitions/400.html
 	}
 
-	err = g.server.Serve(ln)
+	err := g.server.Serve(g.ln)
 	if errors.Is(err, http.ErrServerClosed) {
 		g.logger.Warn("the HTTP server was shutdown")
 		return nil

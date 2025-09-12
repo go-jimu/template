@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/grpcsrv"
 	"github.com/go-jimu/template/internal/pkg/httpsrv"
@@ -12,4 +13,5 @@ var Module = fx.Module(
 	fx.Provide(httpsrv.NewHTTPServer),
 	fx.Provide(database.NewMySQLDriver),
 	fx.Provide(grpcsrv.NewGRPCServ),
+	fx.Provide(connectrpc.NewConnectRPCServer),
 )
