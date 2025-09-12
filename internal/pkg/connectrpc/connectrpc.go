@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"connectrpc.com/otelconnect"
 	"github.com/go-jimu/components/sloghelper"
 	"go.uber.org/fx"
 	"golang.org/x/net/http2"
@@ -39,18 +38,13 @@ type (
 	}
 )
 
-func NewConnectRPCServer(lc fx.Lifecycle, opt Option, logger *slog.Logger) (ConnectServer, error) {
+func NewConnectRPCServer(lc fx.Lifecycle, opt Option, logger *slog.Logger) ConnectServer {
 	logger.Info("create a new Connect server", slog.Any("option", opt))
-	otelInterceptor, err := otelconnect.NewInterceptor(otelconnect.WithPropagateResponseHeader())
-	if err != nil {
-		logger.Error("failed to create otelconnect interceptor", sloghelper.Error(err))
-		return nil, err
-	}
 
 	srv := &connectRPCSrv{
 		option:       opt,
 		logger:       logger,
-		interceptors: []connect.Interceptor{otelInterceptor},
+		interceptors: []connect.Interceptor{NewCarrier(logger).Intercept()},
 		mux:          http.NewServeMux(),
 	}
 
@@ -74,7 +68,7 @@ func NewConnectRPCServer(lc fx.Lifecycle, opt Option, logger *slog.Logger) (Conn
 			return nil
 		},
 	})
-	return srv, nil
+	return srv
 }
 
 func (c *connectRPCSrv) GetGlobalInterceptors() []connect.Interceptor {

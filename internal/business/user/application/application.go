@@ -47,7 +47,8 @@ func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepo
 }
 
 func (app *Application) Get(ctx context.Context, req *connect.Request[userv1.GetRequest]) (*connect.Response[userv1.GetResponse], error) {
-	logger := sloghelper.FromContext(ctx).With(slog.String("user_id", req.Msg.GetId())).With("method", "Get")
+	logger := sloghelper.FromContext(ctx).With(slog.String("user_id", req.Msg.GetId()))
+	logger.Info("invoke Get method")
 	entity, err := app.repo.Get(ctx, req.Msg.GetId())
 	if err != nil {
 		logger.Error("failed to get user", sloghelper.Error(err))
