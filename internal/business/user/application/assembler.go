@@ -1,8 +1,8 @@
 package application
 
 import (
-	userv1 "github.com/go-jimu/template/gen/user/v1"
 	"github.com/go-jimu/template/internal/business/user/domain"
+	userv1 "github.com/go-jimu/template/pkg/gen/user/v1"
 )
 
 func assembleDomainUser(entity *domain.User) *userv1.GetResponse {

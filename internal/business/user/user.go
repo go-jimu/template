@@ -2,10 +2,10 @@ package user
 
 import (
 	"connectrpc.com/connect"
-	"github.com/go-jimu/template/gen/user/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
+	"github.com/go-jimu/template/pkg/gen/user/v1/userv1connect"
 	"go.uber.org/fx"
 )
 
