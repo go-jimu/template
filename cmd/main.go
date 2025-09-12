@@ -11,6 +11,7 @@ import (
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
+	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/grpcsrv"
@@ -20,11 +21,12 @@ import (
 
 type Option struct {
 	fx.Out
-	Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
-	MySQL      database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
-	HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
-	GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-	Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Logger        sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
+	MySQL         database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+	HTTPServer    httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
+	GRPCServer    grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
+	Eventbus      mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	ConnectServer connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
 }
 
 func parseOption() (Option, error) {

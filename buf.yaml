@@ -1,0 +1,15 @@
+version: v2
+lint:
+  use:
+  - STANDARD
+  - COMMENTS
+  service_suffix: API
+  ignore:
+  - proto/google
+breaking:
+  use:
+  - FILE
+  ignore_unstable_packages: true
+modules:
+- path: proto
+  name: go.inovance.org/tpe/gengo

@@ -41,7 +41,9 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"github.vscode-github-actions"
+				"github.vscode-github-actions",
+				"bufbuild.vscode-buf",
+				"zxh404.vscode-proto3"
 			]
 		}
 	}

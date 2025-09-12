@@ -1,26 +1,22 @@
 package user
 
 import (
+	"connectrpc.com/connect"
+	"github.com/go-jimu/template/gen/user/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
-	"github.com/go-jimu/template/internal/business/user/transport"
-	"github.com/go-jimu/template/internal/pkg/httpsrv"
+	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"go.uber.org/fx"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/examples/helloworld/helloworld"
 )
 
 var Module = fx.Module(
 	"domain.user",
 	fx.Provide(infrastructure.NewQueryRepository),
-	fx.Provide(transport.NewController),
-	fx.Provide(transport.NewGreetServer),
 	fx.Provide(application.NewApplication),
 	fx.Provide(infrastructure.NewRepository),
-	fx.Invoke(func(srv httpsrv.HTTPServer, controller httpsrv.Controller) {
-		srv.Register(controller)
-	}),
-	fx.Invoke(func(g grpc.ServiceRegistrar, impl helloworld.GreeterServer) {
-		helloworld.RegisterGreeterServer(g, impl)
+	fx.Invoke(func(srv userv1connect.UserAPIHandler, c connectrpc.ConnectServer) {
+		c.Register(userv1connect.NewUserAPIHandler(
+			srv,
+			connect.WithInterceptors(c.GetGlobalInterceptors()...)))
 	}),
 )

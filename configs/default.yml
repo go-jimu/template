@@ -14,7 +14,5 @@ mysql:
   max_idle_conns: 12
   max_idle_time: ${MYSQL_MAX_IDLE_TIME:5m}
   max_lifetime: ${MYSQL_MAX_LIFETIME:30m}
-http-server:
-  addr: ":80"
-grpc:
+connect:
   addr: ":8080"
