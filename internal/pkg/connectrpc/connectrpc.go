@@ -34,7 +34,7 @@ type (
 	ConnectServer interface {
 		GetGlobalInterceptors() []connect.Interceptor
 		Register(string, http.Handler)
-		Serve() error
+		Serve()
 	}
 )
 
@@ -55,7 +55,7 @@ func NewConnectRPCServer(lc fx.Lifecycle, opt Option, logger *slog.Logger) Conne
 				return err
 			}
 			srv.ln = ln
-			srv.logger.Info("the Connect server is running", slog.String("address", srv.option.Addr))
+			srv.logger.Info("the connect server is running", slog.String("address", srv.option.Addr))
 
 			go srv.Serve()
 			return nil
@@ -80,7 +80,7 @@ func (c *connectRPCSrv) Register(pattern string, hdl http.Handler) {
 	c.logger.Info("registered a new handler", slog.String("pattern", pattern))
 }
 
-func (c *connectRPCSrv) Serve() error {
+func (c *connectRPCSrv) Serve() {
 	c.server = &http.Server{
 		Handler:           h2c.NewHandler(c.mux, &http2.Server{}),
 		ReadHeaderTimeout: 1 * time.Second,
@@ -90,9 +90,8 @@ func (c *connectRPCSrv) Serve() error {
 	// running
 	err := c.server.Serve(c.ln)
 	if errors.Is(err, http.ErrServerClosed) {
-		c.logger.Warn("the Connect server was shutdown")
-		return nil
+		c.logger.Warn("the connect server was shutdown")
+		return
 	}
-	c.logger.Error("the Connect server encountered an error while serving", sloghelper.Error(err))
-	return err
+	c.logger.Error("the connect server encountered an error while serving", sloghelper.Error(err))
 }
