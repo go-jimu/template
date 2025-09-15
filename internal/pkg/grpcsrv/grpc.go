@@ -18,6 +18,7 @@ type (
 		server *grpc.Server
 		logger *slog.Logger
 		opt    Option
+		ln     net.Listener
 	}
 
 	Option struct {
@@ -39,6 +40,13 @@ func NewGRPCServ(lc fx.Lifecycle, opt Option, logger *slog.Logger) grpc.ServiceR
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
+			ln, err := net.Listen("tcp", srv.opt.Addr)
+			if err != nil {
+				return oops.With("address", srv.opt.Addr).Wrap(err)
+			}
+			srv.ln = ln
+			srv.logger.Info("gRPC server is running", slog.String("addr", ln.Addr().String()))
+
 			go srv.Serve()
 			return nil
 		},
@@ -51,18 +59,13 @@ func NewGRPCServ(lc fx.Lifecycle, opt Option, logger *slog.Logger) grpc.ServiceR
 	return srv
 }
 
-func (g *grpcSrv) Serve() error {
-	ln, err := net.Listen("tcp", g.opt.Addr)
-	if err != nil {
-		return oops.With("addr", g.opt.Addr).Wrap(err)
-	}
-	g.logger.Info("gRPC server is running", slog.String("addr", ln.Addr().String()))
-	err = g.server.Serve(ln)
-	if err != nil {
+func (g *grpcSrv) Serve() {
+	if err := g.server.Serve(g.ln); err != nil {
 		err = oops.With("addr", g.opt.Addr).Wrap(err)
 		g.logger.Error("an error was encounted while the gRPC server was running", sloghelper.Error(err))
+		return
 	}
-	return err
+	g.logger.Info("grpc was shutdown")
 }
 
 func (g *grpcSrv) RegisterService(desc *grpc.ServiceDesc, impl any) {

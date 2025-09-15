@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/samber/oops"
 	"go.uber.org/fx"
 )
 
@@ -41,7 +42,7 @@ type (
 
 	HTTPServer interface {
 		Register(Controller)
-		Serve() error
+		Serve()
 	}
 
 	router struct {
@@ -82,7 +83,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option, logger *slog.Logger, cs ...Contr
 
 			ln, err := net.Listen("tcp", g.option.Addr)
 			if err != nil {
-				return err
+				return oops.With("address", g.option.Addr).Wrap(err)
 			}
 			g.ln = ln
 			g.logger.Info("the HTTP server is running", slog.String("address", g.option.Addr))
@@ -144,7 +145,7 @@ func (g *router) lazyLoad() {
 	}
 }
 
-func (g *router) Serve() error {
+func (g *router) Serve() {
 	g.server = &http.Server{
 		Handler:           g.router,
 		ReadHeaderTimeout: readTimeout, // https://cwe.mitre.org/data/definitions/400.html
@@ -153,8 +154,7 @@ func (g *router) Serve() error {
 	err := g.server.Serve(g.ln)
 	if errors.Is(err, http.ErrServerClosed) {
 		g.logger.Warn("the HTTP server was shutdown")
-		return nil
+		return
 	}
 	g.logger.Error("the HTTP server encountered an error while serving", sloghelper.Error(err))
-	return err
 }
