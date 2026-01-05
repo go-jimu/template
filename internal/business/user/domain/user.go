@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// User represents the user aggregate root.
 type User struct {
 	ID             string `validate:"required"`
 	Name           string `validate:"required"`
@@ -23,6 +24,8 @@ type User struct {
 	UpdatedAt      time.Time
 }
 
+// NewUser creates a new User entity.
+// It initializes the ID, validates the input, and generates a domain event.
 func NewUser(name, password, email string) (*User, error) {
 	user := &User{
 		ID:     uuid.Must(uuid.NewV7()).String(),
@@ -54,6 +57,8 @@ func (u *User) genPassword(password string) error {
 	return nil
 }
 
+// ChangePassword changes the user's password.
+// It verifies the old password before setting the new one.
 func (u *User) ChangePassword(o, n string) error {
 	if err := bcrypt.CompareHashAndPassword(u.HashedPassword, []byte(o)); err != nil {
 		return err
@@ -65,6 +70,7 @@ func (u *User) ChangePassword(o, n string) error {
 	return nil
 }
 
+// Validate validates the User entity.
 func (u *User) Validate() error {
 	return validator.Validate(u)
 }

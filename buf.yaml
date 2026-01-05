@@ -3,7 +3,6 @@ lint:
   use:
   - STANDARD
   - COMMENTS
-  service_suffix: API
   ignore:
   - proto/google
 breaking:

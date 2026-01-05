@@ -9,6 +9,8 @@ import (
 	"go.uber.org/fx"
 )
 
+// Module is the fx module for the user business domain.
+// It wires up the DDD layers: infrastructure (repositories), application (use cases), and interfaces (API handlers).
 var Module = fx.Module(
 	"domain.user",
 	fx.Provide(infrastructure.NewQueryRepository),

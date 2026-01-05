@@ -29,10 +29,13 @@ var (
 	_ application.QueryRepository = (*queryUserRepository)(nil)
 )
 
+// NewRepository creates a new instance of the user repository.
 func NewRepository(engine *xorm.Engine, mediator mediator.Mediator) domain.Repository {
 	return &userRepository{engine: engine, mediator: mediator}
 }
 
+// Get retrieves a user by ID.
+// It returns the domain entity if found, or an error.
 func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, error) {
 	do := new(UserDO)
 	has, err := ur.engine.Context(ctx).Where("id = ? AND deleted_at = 0", uid).Get(do)
@@ -49,6 +52,8 @@ func (ur *userRepository) Get(ctx context.Context, uid string) (*domain.User, er
 	return entity, nil
 }
 
+// Save persists the user entity to the database.
+// It handles both insertion of new users and updates to existing ones.
 func (ur *userRepository) Save(ctx context.Context, user *domain.User) error {
 	data, err := convertUserToDO(user)
 	if err != nil {
