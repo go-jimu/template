@@ -1,0 +1,39 @@
+name: Release CI
+on:
+  pull_request:
+    branches:
+    - master
+    types:
+    - closed
+permissions:
+  contents: read
+  packages: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    outputs:
+      new_tag: ${{ steps.autotag.outputs.new_tag }}
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: "0"
+    - name: Auto Tag
+      id: autotag
+      uses: jacexh/action-autotag@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: false
+        prerelease: false
+        tag_name: ${{ steps.autotag.outputs.new_tag }}
+        generate_release_notes: true
+  call-docker-build:
+    needs: release
+    uses: ./.github/workflows/docker-build.yaml
+    with:
+      tag: ${{ needs.release.outputs.new_tag }}
+    secrets: inherit
