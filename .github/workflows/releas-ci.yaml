@@ -12,8 +12,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
-    env:
-      SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
     outputs:
       new_tag: ${{ steps.autotag.outputs.new_tag }}
     steps:
