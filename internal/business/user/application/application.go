@@ -12,14 +12,18 @@ import (
 	"github.com/go-jimu/template/pkg/gen/user/v1/userv1connect"
 )
 
+// Queries groups all read-side use cases.
 type Queries struct {
 	FindUserList *FindUserListHandler
 }
 
+// Commands groups all write-side use cases.
 type Commands struct {
 	ChangePassword *CommandChangePasswordHandler
 }
 
+// Application is the entry point for the user module's application layer.
+// It exposes commands and queries to the interface layer.
 type Application struct {
 	repo     domain.Repository
 	Queries  *Queries
@@ -27,6 +31,8 @@ type Application struct {
 	handlers []mediator.EventHandler
 }
 
+// NewApplication creates a new Application instance.
+// It initializes command and query handlers and subscribes to domain events.
 func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepository) userv1connect.UserAPIHandler {
 	app := &Application{
 		repo: repo,

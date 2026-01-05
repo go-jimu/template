@@ -19,6 +19,8 @@ import (
 	"go.uber.org/fx"
 )
 
+// Option defines the configuration options for the application.
+// It is used by fx to inject dependencies.
 type Option struct {
 	fx.Out
 	Logger        sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
@@ -36,6 +38,8 @@ func parseOption() (Option, error) {
 }
 
 func main() {
+	// fx.New initializes the dependency injection container.
+	// It provides necessary constructors and invokes the application modules.
 	app := fx.New(
 		fx.Provide(parseOption),
 		fx.Provide(sloghelper.NewLog),

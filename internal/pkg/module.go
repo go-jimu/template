@@ -8,6 +8,8 @@ import (
 	"go.uber.org/fx"
 )
 
+// Module is the fx module for the internal package.
+// It provides common infrastructure components like HTTP server, database driver, etc.
 var Module = fx.Module(
 	"internal.pkg",
 	fx.Provide(httpsrv.NewHTTPServer),

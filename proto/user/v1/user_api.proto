@@ -2,18 +2,26 @@ syntax = "proto3";
 
 package user.v1;
 
-option go_package = "github.com/go-jimu/template/pkg/gen/user/v1;userv1";
+option go_package = "github.com/go-jimu/template/pkg/gen/user/v1;userpb";
 
-service UserAPI {
+// UserService defines the user management service.
+service UserService {
+  // Get retrieves a user by their unique identifier.
   rpc Get(GetRequest) returns (GetResponse) {}
 }
 
+// GetRequest represents the request to retrieve a user.
 message GetRequest {
+  // id is the unique identifier of the user to retrieve.
   string id = 1;
 }
 
+// GetResponse represents the user data returned by the Get RPC.
 message GetResponse {
+  // id is the unique identifier of the user.
   string id = 1;
+  // name is the display name of the user.
   string name = 2;
+  // email is the email address of the user.
   string email = 3;
 }
