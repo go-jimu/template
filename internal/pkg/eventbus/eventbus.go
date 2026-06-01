@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
-	"go.uber.org/fx"
 )
 
 type Config struct {
@@ -16,7 +15,7 @@ type Config struct {
 	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
 }
 
-func NewDispatcher(lc fx.Lifecycle, cfg Config, logger *slog.Logger) (event.Dispatcher, event.Subscriber) {
+func NewDispatcher(cfg Config, logger *slog.Logger) (event.Dispatcher, event.Subscriber) {
 	logger = logger.With("name", "eventbus")
 
 	opts := []event.Option{
@@ -36,10 +35,5 @@ func NewDispatcher(lc fx.Lifecycle, cfg Config, logger *slog.Logger) (event.Disp
 	}
 
 	dispatcher := event.NewDispatcher(opts...)
-	lc.Append(fx.Hook{
-		OnStop: func(ctx context.Context) error {
-			return dispatcher.Close(ctx)
-		},
-	})
 	return dispatcher, dispatcher
 }
