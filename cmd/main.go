@@ -26,7 +26,7 @@ type Option struct {
 	MySQL         database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
 	HTTPServer    httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
 	GRPCServer    grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-	Eventbus      eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Eventbus      eventbus.Config    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 	ConnectServer connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
 }
 
