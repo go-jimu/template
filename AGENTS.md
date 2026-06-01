@@ -52,7 +52,7 @@ Every logical component must be provided via `fx`.
 ### B. Domain Layer (Pure)
 *   **Entities:** Rich structs with methods.
 *   **Validation:** Use `validate` tags on structs. Call `Validate()` in factory methods (`NewUser`).
-*   **Events:** Use `mediator.EventCollection` to store domain events inside the aggregate root.
+*   **Events:** Use `ddd/event.Collection` to store domain events inside the aggregate root.
 
 ### C. Application Layer (Use Cases)
 *   **Split:** Separate `Commands` (Write) and `Queries` (Read).

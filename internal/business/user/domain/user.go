@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-jimu/components/mediator"
+	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/template/internal/pkg/validator"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -16,7 +16,7 @@ type User struct {
 	Name           string `validate:"required"`
 	Email          string `validate:"required,email"`
 	HashedPassword []byte `copier:"Password"`
-	Events         mediator.EventCollection
+	Events         event.Collection
 	Version        int
 	Dirty          int32
 	Deleted        bool
@@ -31,7 +31,7 @@ func NewUser(name, password, email string) (*User, error) {
 		ID:     uuid.Must(uuid.NewV7()).String(),
 		Name:   name,
 		Email:  email,
-		Events: mediator.NewEventCollection(),
+		Events: event.NewCollection(),
 	}
 	if err := user.genPassword(password); err != nil {
 		return nil, err

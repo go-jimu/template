@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
-	"github.com/go-jimu/components/mediator"
+	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/domain"
 	userv1 "github.com/go-jimu/template/pkg/gen/user/v1"
@@ -28,26 +28,26 @@ type Application struct {
 	repo     domain.Repository
 	Queries  *Queries
 	Commands *Commands
-	handlers []mediator.EventHandler
+	handlers []event.Handler
 }
 
 // NewApplication creates a new Application instance.
 // It initializes command and query handlers and subscribes to domain events.
-func NewApplication(ev mediator.Mediator, repo domain.Repository, read QueryRepository) userv1connect.UserAPIHandler {
+func NewApplication(sub event.Subscriber, dispatcher event.Dispatcher, repo domain.Repository, read QueryRepository) userv1connect.UserAPIHandler {
 	app := &Application{
 		repo: repo,
 		Queries: &Queries{
 			FindUserList: NewFindUserListHandler(read),
 		},
 		Commands: &Commands{
-			ChangePassword: NewCommandChangePasswordHandler(repo),
+			ChangePassword: NewCommandChangePasswordHandler(repo, dispatcher),
 		},
-		handlers: []mediator.EventHandler{
+		handlers: []event.Handler{
 			NewUserCreatedHandler(),
 		},
 	}
 	for _, hdl := range app.handlers {
-		ev.Subscribe(hdl)
+		sub.Subscribe(hdl)
 	}
 	return app
 }

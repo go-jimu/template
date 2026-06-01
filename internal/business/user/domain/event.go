@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/go-jimu/components/mediator"
+import "github.com/go-jimu/components/ddd/event"
 
 type EventUserCreated struct {
 	ID    string
@@ -8,8 +8,8 @@ type EventUserCreated struct {
 	Email string
 }
 
-const EKUserCreated = mediator.EventKind("user.created")
+const EKUserCreated = event.Kind("user.created")
 
-func (uc EventUserCreated) Kind() mediator.EventKind {
+func (uc EventUserCreated) Kind() event.Kind {
 	return EKUserCreated
 }
