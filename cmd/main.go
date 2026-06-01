@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-jimu/components/config/loader"
-	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
@@ -27,7 +26,7 @@ type Option struct {
 	MySQL         database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
 	HTTPServer    httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
 	GRPCServer    grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-	Eventbus      mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Eventbus      eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 	ConnectServer connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
 }
 
@@ -43,7 +42,7 @@ func main() {
 	app := fx.New(
 		fx.Provide(parseOption),
 		fx.Provide(sloghelper.NewLog),
-		fx.Provide(eventbus.NewMediator),
+		fx.Provide(eventbus.NewDispatcher),
 		pkg.Module,
 		user.Module,
 		fx.NopLogger,

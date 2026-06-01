@@ -32,7 +32,7 @@ func BuildDBConnectionForTest(tb testing.TB) *xorm.Engine {
 
 // func TestUserRepository_Get(t *testing.T) {
 // 	db := BuildDBConnectionForTest(t)
-// 	ur := infrastructure.NewRepository(db, mediator.Default())
+// 	ur := infrastructure.NewRepository(db)
 // 	user, err := ur.Get(context.Background(), "1")
 // 	assert.NoError(t, err)
 // 	assert.NotNil(t, user)
@@ -40,7 +40,7 @@ func BuildDBConnectionForTest(tb testing.TB) *xorm.Engine {
 
 // func TestUserRepository_Create(t *testing.T) {
 // 	db := BuildDBConnectionForTest(t)
-// 	ur := infrastructure.NewRepository(db, mediator.Default())
+// 	ur := infrastructure.NewRepository(db)
 // 	user, err := domain.NewUser(
 // 		"test",
 // 		"123456",

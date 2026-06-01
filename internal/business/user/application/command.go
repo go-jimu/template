@@ -4,18 +4,20 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/go-jimu/components/mediator"
+	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
 type CommandChangePasswordHandler struct {
-	repo domain.Repository
+	repo       domain.Repository
+	dispatcher event.Dispatcher
 }
 
-func NewCommandChangePasswordHandler(repo domain.Repository) *CommandChangePasswordHandler {
+func NewCommandChangePasswordHandler(repo domain.Repository, dispatcher event.Dispatcher) *CommandChangePasswordHandler {
 	return &CommandChangePasswordHandler{
-		repo: repo,
+		repo:       repo,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -34,6 +36,8 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, logger *slog.
 		return err
 	}
 	logger.InfoContext(ctx, "password is changed")
-	entity.Events.Raise(mediator.Default())
+	if err = h.dispatcher.DispatchAll(entity.Events.Drain()); err != nil {
+		logger.WarnContext(ctx, "failed to dispatch domain events", sloghelper.Error(err))
+	}
 	return nil
 }

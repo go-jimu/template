@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/go-jimu/components/mediator"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/go-jimu/template/internal/pkg/database"
@@ -15,8 +14,7 @@ import (
 
 type (
 	userRepository struct {
-		engine   *xorm.Engine
-		mediator mediator.Mediator
+		engine *xorm.Engine
 	}
 
 	queryUserRepository struct {
@@ -30,8 +28,8 @@ var (
 )
 
 // NewRepository creates a new instance of the user repository.
-func NewRepository(engine *xorm.Engine, mediator mediator.Mediator) domain.Repository {
-	return &userRepository{engine: engine, mediator: mediator}
+func NewRepository(engine *xorm.Engine) domain.Repository {
+	return &userRepository{engine: engine}
 }
 
 // Get retrieves a user by ID.
