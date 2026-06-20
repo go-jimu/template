@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	connectrpc.com/connect v1.18.1
-	github.com/go-chi/chi/v5 v5.2.2
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/go-jimu/components v0.9.8
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/go-sql-driver/mysql v1.8.1
