@@ -1,48 +1,42 @@
 package infrastructure
 
 import (
-	"time"
-
 	"github.com/go-jimu/components/ddd/event"
-	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/business/user/application/query"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	"github.com/go-jimu/template/internal/pkg/database"
-	"github.com/jinzhu/copier"
 	"github.com/samber/oops"
 )
 
-func convertUserToDO(entity *domain.User) (*UserDO, error) {
-	do := new(UserDO)
-	if err := copier.Copy(do, entity); err != nil {
-		return nil, oops.Wrap(err)
+func userToDO(user *domain.User) *userDO {
+	return &userDO{
+		ID:       user.ID,
+		Name:     user.Name,
+		Password: user.HashedPassword,
+		Email:    user.Email,
+		Version:  user.Version,
 	}
-	do.UpdatedAt = database.NewTimestamp(time.Now())
-	if entity.Deleted {
-		do.DeletedAt = database.NewTimestamp(time.Now())
-	} else {
-		do.DeletedAt = database.NewTimestamp(database.UnixEpoch)
-	}
-	return do, nil
 }
 
-func convertUserDO(do *UserDO) (*domain.User, error) {
-	entity := new(domain.User)
-	if err := copier.Copy(entity, do); err != nil {
-		return nil, oops.Wrap(err)
+func userFromDO(data *userDO) (*domain.User, error) {
+	if data.Version < 1 {
+		return nil, oops.With("version", data.Version).
+			With("source", "persistence").
+			Wrap(domain.ErrInvalidUser)
 	}
-	entity.Events = event.NewCollection()
-	entity.CreatedAt = do.CreatedAt.Time
-	entity.UpdatedAt = do.UpdatedAt.Time
-	if !do.DeletedAt.Time.IsZero() {
-		entity.Deleted = true
+	user := &domain.User{
+		ID:             data.ID,
+		Name:           data.Name,
+		Email:          data.Email,
+		HashedPassword: data.Password,
+		Version:        data.Version,
+		Events:         event.NewCollection(),
 	}
-	return entity, nil
+	if err := user.Validate(); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-func convertUserDOToDTO(do *UserDO) (*application.User, error) {
-	dto := new(application.User)
-	if err := copier.Copy(dto, do); err != nil {
-		return nil, oops.Wrap(err)
-	}
-	return dto, nil
+func userReadModelFromDO(data *userDO) query.User {
+	return query.User{ID: data.ID, Name: data.Name, Email: data.Email}
 }

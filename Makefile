@@ -1,40 +1,37 @@
-GO_MOD_DIRS := $(shell find . -type f -name 'go.mod' -exec dirname {} \; | sort)
+BUF_VERSION ?= v1.67.0
+PROTOC_GEN_GO_VERSION ?= v1.36.11
+PROTOC_GEN_CONNECT_GO_VERSION ?= v1.20.0
 
-.PHONY: unittest
-unittest: 
-	go test -race -covermode=atomic -v -coverprofile=coverage.txt $(extend) ./...;
-	for dir in `find . -type f -name "go.mod" -exec dirname {} \;`; do \
-		if [ $${dir} != "." ]; then \
-			go test -race -covermode=atomic -v -coverprofile=$${dir}/coverage.txt $(extend) $${dir}/...; \
-			if [ -f $${dir}/coverage.txt ]; then \
-				tail -n+2 $${lines} $${dir}/coverage.txt >> coverage.txt; \
-				rm $${dir}/coverage.txt; \
-			fi; \
-		fi; \
-	done	
+.PHONY: test
+test:
+	go test -race -covermode=atomic -coverprofile=coverage.txt ./...
 
-.PHONY: benchmark
-benchmark: 
-	for dir in $(GO_MOD_DIRS); do \
-		go test -bench=. -run=^Benchmark $${dir}/...; \
-	done
+.PHONY: vet
+vet:
+	go vet ./...
+
+.PHONY: generate
+generate:
+	buf lint
+	buf generate
+
+.PHONY: verify
+verify: generate test vet
 
 .PHONY: server
 server:
-	@go run cmd/main.go
+	go run ./cmd
 
+.PHONY: client
+client:
+	go run ./cmd/client
 
-.PHONY: mod_tidy
-mod_tidy:
-	set -e; for dir in $(GO_MOD_DIRS); do \
-		echo "go mod tidy in $${dir}"; \
-		(cd "$${dir}" && \
-		go mod tidy); \
-	done
+.PHONY: mod-tidy
+mod-tidy:
+	go mod tidy
 
 .PHONY: tools
 tools:
-	go install github.com/bufbuild/buf/cmd/buf@latest
-	go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+	go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
+	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@$(PROTOC_GEN_CONNECT_GO_VERSION)

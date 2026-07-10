@@ -30,11 +30,17 @@ func (l *XormSlog) Debugf(format string, v ...any) {
 }
 
 func (l *XormSlog) Error(v ...any) {
-	l.logger.Error(fmt.Sprint(v...))
+	l.logger.Debug(
+		"xorm reported an error",
+		slog.String("detail", fmt.Sprint(v...)),
+	)
 }
 
 func (l *XormSlog) Errorf(format string, v ...any) {
-	l.logger.Error(fmt.Sprintf(format, v...))
+	l.logger.Debug(
+		"xorm reported an error",
+		slog.String("detail", fmt.Sprintf(format, v...)),
+	)
 }
 
 func (l *XormSlog) Info(v ...any) {

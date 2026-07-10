@@ -4,75 +4,99 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/samber/oops"
 )
 
+const headerRequestID = "X-Request-ID"
+
+// Carrier creates request-scoped loggers and one completion log per RPC.
 type Carrier struct {
 	logger  *slog.Logger
 	counter uint64
 	prefix  string
 }
 
+// NewCarrier creates the shared unary interceptor.
 func NewCarrier(logger *slog.Logger) *Carrier {
-	ca := &Carrier{logger: logger}
-	ca.genPrefix()
-	return ca
+	return &Carrier{logger: logger, prefix: requestIDPrefix()}
 }
 
-func (ca *Carrier) genPrefix() {
+// Intercept returns the Connect unary interceptor.
+func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
+	return func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, request connect.AnyRequest) (
+			response connect.AnyResponse,
+			err error,
+		) {
+			startedAt := time.Now()
+			requestID := request.Header().Get(headerRequestID)
+			if requestID == "" {
+				requestID = fmt.Sprintf("%s-%06d", c.prefix, atomic.AddUint64(&c.counter, 1))
+			}
+			logger := c.logger.With(slog.String("request_id", requestID))
+			ctx = sloghelper.NewContext(ctx, logger)
+
+			var loggedErr error
+			func() {
+				defer func() {
+					if recovered := recover(); recovered != nil {
+						loggedErr = oops.With("panic", fmt.Sprint(recovered)).
+							Errorf("panic recovered")
+						response = nil
+						err = connect.NewError(
+							connect.CodeInternal,
+							errors.New("internal server error"),
+						)
+					}
+				}()
+				response, err = next(ctx, request)
+				loggedErr = err
+			}()
+
+			if err != nil {
+				logger.ErrorContext(
+					ctx,
+					"request complete",
+					slog.String("operation", request.Spec().Procedure),
+					slog.String("outcome", "failed"),
+					slog.String("connect_code", connect.CodeOf(err).String()),
+					slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+					sloghelper.Error(loggedErr),
+				)
+				return response, err
+			}
+			logger.InfoContext(
+				ctx,
+				"request complete",
+				slog.String("operation", request.Spec().Procedure),
+				slog.String("outcome", "success"),
+				slog.String("connect_code", "ok"),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+			return response, nil
+		}
+	}
+}
+
+func requestIDPrefix() string {
 	hostname, err := os.Hostname()
 	if hostname == "" || err != nil {
 		hostname = "localhost"
 	}
-	var buf [12]byte
-	var b64 string
-	for len(b64) < 10 {
-		rand.Read(buf[:])
-		b64 = base64.StdEncoding.EncodeToString(buf[:])
-		b64 = strings.NewReplacer("+", "", "/", "").Replace(b64)
+	var random [12]byte
+	if _, err = rand.Read(random[:]); err != nil {
+		return hostname
 	}
-	ca.prefix = fmt.Sprintf("%s/%s", hostname, b64[0:10])
-}
-
-func (ca *Carrier) nextRequestID() uint64 {
-	return atomic.AddUint64(&ca.counter, 1)
-}
-
-func (ca *Carrier) Intercept() connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			start := time.Now()
-			requestID := fmt.Sprintf("%s-%06d", ca.prefix, ca.nextRequestID())
-			logger := ca.logger.With("request_id", requestID)
-			ctx = sloghelper.NewContext(ctx, ca.logger)
-
-			defer func() {
-				if rec := recover(); rec != nil {
-					err, ok := rec.(error)
-					if ok {
-						logger.Error("recovered from panic", sloghelper.Error(err))
-						return
-					}
-					logger.Error("recovered from panic", slog.Group("error", slog.Any("message", rec), slog.String("trace", string(debug.Stack()))))
-				}
-			}()
-
-			res, err := next(ctx, req)
-
-			logger.Info("request complete",
-				slog.Group("request", slog.Bool("is_client", req.Spec().IsClient), slog.String("method", req.HTTPMethod()), slog.String("procedure", req.Spec().Procedure)),
-				slog.String("elapsed", time.Since(start).String()))
-
-			return res, err
-		}
-	}
+	encoded := base64.RawURLEncoding.EncodeToString(random[:])
+	return fmt.Sprintf("%s/%s", hostname, strings.TrimRight(encoded, "=")[:10])
 }

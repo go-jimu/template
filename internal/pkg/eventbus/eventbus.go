@@ -1,39 +1,96 @@
+// Package eventbus owns the in-process Domain Event dispatcher lifecycle.
 package eventbus
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/samber/oops"
+	"go.uber.org/fx"
 )
 
+// Config contains Domain Event dispatcher runtime settings.
 type Config struct {
 	BufferSize     int    `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
 	DelayClose     string `json:"delay-close" toml:"delay-close" yaml:"delay-close"`
 	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
 }
 
-func NewDispatcher(cfg Config, logger *slog.Logger) (event.Dispatcher, event.Subscriber) {
-	logger = logger.With("name", "eventbus")
+// Validate checks the Domain Event dispatcher component's own configuration.
+func (c Config) Validate() error {
+	if c.BufferSize < 1 {
+		return fmt.Errorf("eventbus buffer-size must be positive")
+	}
+	delayClose, err := time.ParseDuration(c.DelayClose)
+	if err != nil {
+		return oops.With("option", "delay-close").
+			With("value", c.DelayClose).
+			Wrap(oops.Wrap(err))
+	}
+	if delayClose < 0 {
+		return fmt.Errorf("eventbus delay-close cannot be negative")
+	}
+	handlerTimeout, err := time.ParseDuration(c.HandlerTimeout)
+	if err != nil {
+		return oops.With("option", "handler-timeout").
+			With("value", c.HandlerTimeout).
+			Wrap(oops.Wrap(err))
+	}
+	if handlerTimeout <= 0 {
+		return fmt.Errorf("eventbus handler-timeout must be positive")
+	}
+	return nil
+}
 
-	opts := []event.Option{
-		event.WithLogger(logger),
-		event.WithBufferSize(cfg.BufferSize),
-		event.WithContextFactory(func(ctx context.Context, ev event.Event) context.Context {
-			eventLogger := logger.With(slog.String("event_kind", string(ev.Kind())))
-			ctx = sloghelper.NewContext(ctx, eventLogger)
-			return ctx
+// NewDispatcher creates one shared dispatcher and closes it through Fx lifecycle.
+func NewDispatcher(
+	lifecycle fx.Lifecycle,
+	config Config,
+	logger *slog.Logger,
+) (event.Dispatcher, event.Subscriber, error) {
+	if err := config.Validate(); err != nil {
+		return nil, nil, err
+	}
+	delayClose, err := time.ParseDuration(config.DelayClose)
+	if err != nil {
+		return nil, nil, oops.With("option", "delay-close").
+			With("value", config.DelayClose).
+			Wrap(oops.Wrap(err))
+	}
+	handlerTimeout, err := time.ParseDuration(config.HandlerTimeout)
+	if err != nil {
+		return nil, nil, oops.With("option", "handler-timeout").
+			With("value", config.HandlerTimeout).
+			Wrap(oops.Wrap(err))
+	}
+
+	eventLogger := logger.With(slog.String("component", "eventbus"))
+	dispatcher := event.NewDispatcher(
+		event.WithLogger(eventLogger),
+		event.WithBufferSize(config.BufferSize),
+		event.WithDelayClose(delayClose),
+		event.WithHandlerTimeout(handlerTimeout),
+		event.WithContextFactory(func(ctx context.Context, domainEvent event.Event) context.Context {
+			return sloghelper.NewContext(
+				ctx,
+				eventLogger.With(slog.String("event_kind", string(domainEvent.Kind()))),
+			)
 		}),
-	}
-	if delayClose, err := time.ParseDuration(cfg.DelayClose); err == nil {
-		opts = append(opts, event.WithDelayClose(delayClose))
-	}
-	if handlerTimeout, err := time.ParseDuration(cfg.HandlerTimeout); err == nil {
-		opts = append(opts, event.WithHandlerTimeout(handlerTimeout))
-	}
-
-	dispatcher := event.NewDispatcher(opts...)
-	return dispatcher, dispatcher
+		event.WithUnhandledEventHandler(func(unhandled event.UnhandledContext) {
+			eventLogger.Warn(
+				"domain event has no handler",
+				slog.String("event_kind", string(unhandled.Event.Kind())),
+			)
+		}),
+	)
+	lifecycle.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			return oops.Wrap(dispatcher.Close(ctx))
+		},
+	})
+	return dispatcher, dispatcher, nil
 }

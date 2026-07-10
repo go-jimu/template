@@ -2,26 +2,89 @@ syntax = "proto3";
 
 package user.v1;
 
-option go_package = "github.com/go-jimu/template/pkg/gen/user/v1;userpb";
+option go_package = "github.com/go-jimu/template/pkg/gen/user/v1;userv1";
 
-// UserService defines the user management service.
+// UserService exposes User commands and queries over Connect, gRPC, and gRPC-Web.
 service UserService {
-  // Get retrieves a user by their unique identifier.
+  // Create registers a new user.
+  rpc Create(CreateRequest) returns (CreateResponse) {}
+  // Get returns one user read model.
   rpc Get(GetRequest) returns (GetResponse) {}
+  // ChangePassword changes one user's credentials.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {}
+  // List returns a normalized page of users.
+  rpc List(ListRequest) returns (ListResponse) {}
 }
 
-// GetRequest represents the request to retrieve a user.
-message GetRequest {
-  // id is the unique identifier of the user to retrieve.
+// User is the protocol read model exposed by UserService.
+message User {
+  // id is the stable user identifier.
   string id = 1;
-}
-
-// GetResponse represents the user data returned by the Get RPC.
-message GetResponse {
-  // id is the unique identifier of the user.
-  string id = 1;
-  // name is the display name of the user.
+  // name is the display name.
   string name = 2;
-  // email is the email address of the user.
+  // email is the normalized email address.
   string email = 3;
+}
+
+// CreateRequest contains the fields required to register a user.
+message CreateRequest {
+  // name is the display name.
+  string name = 1;
+  // password is the initial raw password.
+  string password = 2;
+  // email is the user's email address.
+  string email = 3;
+}
+
+// CreateResponse returns the newly registered user.
+message CreateResponse {
+  // user is the created read model.
+  User user = 1;
+}
+
+// GetRequest identifies the user to retrieve.
+message GetRequest {
+  // id is the stable user identifier.
+  string id = 1;
+}
+
+// GetResponse returns one user.
+message GetResponse {
+  // user is the requested read model.
+  User user = 1;
+}
+
+// ChangePasswordRequest contains the current and replacement credentials.
+message ChangePasswordRequest {
+  // id is the stable user identifier.
+  string id = 1;
+  // current_password proves knowledge of the current credential.
+  string current_password = 2;
+  // new_password is the replacement credential.
+  string new_password = 3;
+}
+
+// ChangePasswordResponse is empty when the command succeeds.
+message ChangePasswordResponse {}
+
+// ListRequest contains optional name and pagination filters.
+message ListRequest {
+  // name_prefix filters users by a leading name prefix.
+  string name_prefix = 1;
+  // page is one-based; zero selects the default.
+  int32 page = 2;
+  // page_size is capped by Application policy.
+  int32 page_size = 3;
+}
+
+// ListResponse returns a normalized page of users.
+message ListResponse {
+  // users contains the current page.
+  repeated User users = 1;
+  // total is the number of matching users.
+  int64 total = 2;
+  // page is the normalized one-based page number.
+  int32 page = 3;
+  // page_size is the normalized page size.
+  int32 page_size = 4;
 }

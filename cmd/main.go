@@ -1,70 +1,52 @@
 package main
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/template/internal/business/notification"
 	"github.com/go-jimu/template/internal/business/user"
 	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
-	"github.com/go-jimu/template/internal/pkg/grpcsrv"
-	"github.com/go-jimu/template/internal/pkg/httpsrv"
+	"github.com/go-jimu/template/internal/pkg/messagebus"
+	"github.com/samber/oops"
 	"go.uber.org/fx"
 )
 
-// Option defines the configuration options for the application.
-// It is used by fx to inject dependencies.
+// Option aggregates component-owned runtime options for Fx injection.
 type Option struct {
 	fx.Out
-	Logger        sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
-	MySQL         database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
-	HTTPServer    httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
-	GRPCServer    grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-	Eventbus      eventbus.Config    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
-	ConnectServer connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
-}
-
-func parseOption() (Option, error) {
-	opt := new(Option)
-	err := loader.Load(opt)
-	return *opt, err
+	Logger   sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
+	MySQL    database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+	EventBus eventbus.Config    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+	Kafka    messagebus.Option  `json:"kafka" toml:"kafka" yaml:"kafka"`
+	Connect  connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
 }
 
 func main() {
-	// fx.New initializes the dependency injection container.
-	// It provides necessary constructors and invokes the application modules.
+	var option Option
+	if err := loader.Load(
+		&option,
+		loader.WithConfigurationDirectory("./configs", "defaults"),
+	); err != nil {
+		slog.Error("failed to load configuration", sloghelper.Error(oops.Wrap(err)))
+		os.Exit(1)
+	}
 	app := fx.New(
-		fx.Provide(parseOption),
+		fx.Supply(option),
 		fx.Provide(sloghelper.NewLog),
 		fx.Provide(eventbus.NewDispatcher),
 		pkg.Module,
 		user.Module,
-		fx.NopLogger,
+		notification.Module,
+		fx.StartTimeout(15*time.Second),
+		fx.StopTimeout(30*time.Second),
 	)
-	startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	if err := app.Start(startCtx); err != nil {
-		slog.ErrorContext(startCtx, "failed to start application", sloghelper.Error(err))
-		os.Exit(1)
-	}
-
-	<-app.Done()
-	slog.Warn("caught quit signal")
-
-	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := app.Stop(stopCtx); err != nil {
-		slog.Error("failed to stop application", sloghelper.Error(err))
-		os.Exit(1)
-	}
-
-	slog.Info("bye")
-	os.Exit(0)
+	slog.Info("starting application")
+	app.Run()
 }

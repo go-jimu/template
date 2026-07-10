@@ -1,15 +1,21 @@
 package domain
 
-import "github.com/go-jimu/components/ddd/event"
+import (
+	"time"
 
-type EventUserCreated struct {
-	ID    string
-	Name  string
-	Email string
+	"github.com/go-jimu/components/ddd/event"
+)
+
+// EventKindUserCreated identifies the UserCreated Domain Event inside the User context.
+const EventKindUserCreated event.Kind = "user.created"
+
+// UserCreated records the fact that a new User Aggregate was created.
+type UserCreated struct {
+	UserID     string
+	Name       string
+	Email      string
+	OccurredAt time.Time
 }
 
-const EKUserCreated = event.Kind("user.created")
-
-func (uc EventUserCreated) Kind() event.Kind {
-	return EKUserCreated
-}
+// Kind implements event.Event.
+func (UserCreated) Kind() event.Kind { return EventKindUserCreated }

@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// UserAPIName is the fully-qualified name of the UserAPI service.
-	UserAPIName = "user.v1.UserAPI"
+	// UserServiceName is the fully-qualified name of the UserService service.
+	UserServiceName = "user.v1.UserService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,76 +33,169 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// UserAPIGetProcedure is the fully-qualified name of the UserAPI's Get RPC.
-	UserAPIGetProcedure = "/user.v1.UserAPI/Get"
+	// UserServiceCreateProcedure is the fully-qualified name of the UserService's Create RPC.
+	UserServiceCreateProcedure = "/user.v1.UserService/Create"
+	// UserServiceGetProcedure is the fully-qualified name of the UserService's Get RPC.
+	UserServiceGetProcedure = "/user.v1.UserService/Get"
+	// UserServiceChangePasswordProcedure is the fully-qualified name of the UserService's
+	// ChangePassword RPC.
+	UserServiceChangePasswordProcedure = "/user.v1.UserService/ChangePassword"
+	// UserServiceListProcedure is the fully-qualified name of the UserService's List RPC.
+	UserServiceListProcedure = "/user.v1.UserService/List"
 )
 
-// UserAPIClient is a client for the user.v1.UserAPI service.
-type UserAPIClient interface {
+// UserServiceClient is a client for the user.v1.UserService service.
+type UserServiceClient interface {
+	// Create registers a new user.
+	Create(context.Context, *connect.Request[v1.CreateRequest]) (*connect.Response[v1.CreateResponse], error)
+	// Get returns one user read model.
 	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	// ChangePassword changes one user's credentials.
+	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// List returns a normalized page of users.
+	List(context.Context, *connect.Request[v1.ListRequest]) (*connect.Response[v1.ListResponse], error)
 }
 
-// NewUserAPIClient constructs a client for the user.v1.UserAPI service. By default, it uses the
-// Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// NewUserServiceClient constructs a client for the user.v1.UserService service. By default, it uses
+// the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
 // uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
 // connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewUserAPIClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) UserAPIClient {
+func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) UserServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	userAPIMethods := v1.File_user_v1_user_api_proto.Services().ByName("UserAPI").Methods()
-	return &userAPIClient{
+	userServiceMethods := v1.File_user_v1_user_api_proto.Services().ByName("UserService").Methods()
+	return &userServiceClient{
+		create: connect.NewClient[v1.CreateRequest, v1.CreateResponse](
+			httpClient,
+			baseURL+UserServiceCreateProcedure,
+			connect.WithSchema(userServiceMethods.ByName("Create")),
+			connect.WithClientOptions(opts...),
+		),
 		get: connect.NewClient[v1.GetRequest, v1.GetResponse](
 			httpClient,
-			baseURL+UserAPIGetProcedure,
-			connect.WithSchema(userAPIMethods.ByName("Get")),
+			baseURL+UserServiceGetProcedure,
+			connect.WithSchema(userServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+		changePassword: connect.NewClient[v1.ChangePasswordRequest, v1.ChangePasswordResponse](
+			httpClient,
+			baseURL+UserServiceChangePasswordProcedure,
+			connect.WithSchema(userServiceMethods.ByName("ChangePassword")),
+			connect.WithClientOptions(opts...),
+		),
+		list: connect.NewClient[v1.ListRequest, v1.ListResponse](
+			httpClient,
+			baseURL+UserServiceListProcedure,
+			connect.WithSchema(userServiceMethods.ByName("List")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// userAPIClient implements UserAPIClient.
-type userAPIClient struct {
-	get *connect.Client[v1.GetRequest, v1.GetResponse]
+// userServiceClient implements UserServiceClient.
+type userServiceClient struct {
+	create         *connect.Client[v1.CreateRequest, v1.CreateResponse]
+	get            *connect.Client[v1.GetRequest, v1.GetResponse]
+	changePassword *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	list           *connect.Client[v1.ListRequest, v1.ListResponse]
 }
 
-// Get calls user.v1.UserAPI.Get.
-func (c *userAPIClient) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
+// Create calls user.v1.UserService.Create.
+func (c *userServiceClient) Create(ctx context.Context, req *connect.Request[v1.CreateRequest]) (*connect.Response[v1.CreateResponse], error) {
+	return c.create.CallUnary(ctx, req)
+}
+
+// Get calls user.v1.UserService.Get.
+func (c *userServiceClient) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
 	return c.get.CallUnary(ctx, req)
 }
 
-// UserAPIHandler is an implementation of the user.v1.UserAPI service.
-type UserAPIHandler interface {
-	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+// ChangePassword calls user.v1.UserService.ChangePassword.
+func (c *userServiceClient) ChangePassword(ctx context.Context, req *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
+	return c.changePassword.CallUnary(ctx, req)
 }
 
-// NewUserAPIHandler builds an HTTP handler from the service implementation. It returns the path on
-// which to mount the handler and the handler itself.
+// List calls user.v1.UserService.List.
+func (c *userServiceClient) List(ctx context.Context, req *connect.Request[v1.ListRequest]) (*connect.Response[v1.ListResponse], error) {
+	return c.list.CallUnary(ctx, req)
+}
+
+// UserServiceHandler is an implementation of the user.v1.UserService service.
+type UserServiceHandler interface {
+	// Create registers a new user.
+	Create(context.Context, *connect.Request[v1.CreateRequest]) (*connect.Response[v1.CreateResponse], error)
+	// Get returns one user read model.
+	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	// ChangePassword changes one user's credentials.
+	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// List returns a normalized page of users.
+	List(context.Context, *connect.Request[v1.ListRequest]) (*connect.Response[v1.ListResponse], error)
+}
+
+// NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
+// on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewUserAPIHandler(svc UserAPIHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	userAPIMethods := v1.File_user_v1_user_api_proto.Services().ByName("UserAPI").Methods()
-	userAPIGetHandler := connect.NewUnaryHandler(
-		UserAPIGetProcedure,
-		svc.Get,
-		connect.WithSchema(userAPIMethods.ByName("Get")),
+func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	userServiceMethods := v1.File_user_v1_user_api_proto.Services().ByName("UserService").Methods()
+	userServiceCreateHandler := connect.NewUnaryHandler(
+		UserServiceCreateProcedure,
+		svc.Create,
+		connect.WithSchema(userServiceMethods.ByName("Create")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/user.v1.UserAPI/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	userServiceGetHandler := connect.NewUnaryHandler(
+		UserServiceGetProcedure,
+		svc.Get,
+		connect.WithSchema(userServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceChangePasswordHandler := connect.NewUnaryHandler(
+		UserServiceChangePasswordProcedure,
+		svc.ChangePassword,
+		connect.WithSchema(userServiceMethods.ByName("ChangePassword")),
+		connect.WithHandlerOptions(opts...),
+	)
+	userServiceListHandler := connect.NewUnaryHandler(
+		UserServiceListProcedure,
+		svc.List,
+		connect.WithSchema(userServiceMethods.ByName("List")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/user.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case UserAPIGetProcedure:
-			userAPIGetHandler.ServeHTTP(w, r)
+		case UserServiceCreateProcedure:
+			userServiceCreateHandler.ServeHTTP(w, r)
+		case UserServiceGetProcedure:
+			userServiceGetHandler.ServeHTTP(w, r)
+		case UserServiceChangePasswordProcedure:
+			userServiceChangePasswordHandler.ServeHTTP(w, r)
+		case UserServiceListProcedure:
+			userServiceListHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedUserAPIHandler returns CodeUnimplemented from all methods.
-type UnimplementedUserAPIHandler struct{}
+// UnimplementedUserServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedUserServiceHandler struct{}
 
-func (UnimplementedUserAPIHandler) Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserAPI.Get is not implemented"))
+func (UnimplementedUserServiceHandler) Create(context.Context, *connect.Request[v1.CreateRequest]) (*connect.Response[v1.CreateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.Create is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.Get is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.ChangePassword is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) List(context.Context, *connect.Request[v1.ListRequest]) (*connect.Response[v1.ListResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.List is not implemented"))
 }
