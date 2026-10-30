@@ -33,6 +33,23 @@ func TestUserFromDOMapsPersistedAggregate(t *testing.T) {
 	}
 }
 
+func TestConvertCopiesPasswordHash(t *testing.T) {
+	data := &userDO{ID: uuid.NewString(), Name: "Alice", Email: "alice@example.com", Password: []byte("hash"), Version: 1}
+	user, err := userFromDO(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data.Password[0] = 'X'
+	if string(user.HashedPassword) != "hash" {
+		t.Fatalf("aggregate hash changed with the DO: %q", user.HashedPassword)
+	}
+	back := userToDO(user)
+	back.Password[0] = 'Y'
+	if string(user.HashedPassword) != "hash" {
+		t.Fatalf("aggregate hash changed with the DO: %q", user.HashedPassword)
+	}
+}
+
 func TestUserFromDORejectsInvalidPersistedVersion(t *testing.T) {
 	_, err := userFromDO(&userDO{Version: 0})
 	if !errors.Is(err, domain.ErrInvalidUser) {

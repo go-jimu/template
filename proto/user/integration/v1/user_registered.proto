@@ -4,7 +4,7 @@ package user.integration.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/go-jimu/template/pkg/gen/user/integration/v1;userintegrationv1";
+option go_package = "github.com/go-jimu/template/gen/user/integration/v1;userintegrationv1";
 
 // UserRegisteredV1 is the stable published fact emitted by the User context.
 message UserRegisteredV1 {

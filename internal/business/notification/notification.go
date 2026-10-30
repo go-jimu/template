@@ -3,9 +3,9 @@ package notification
 
 import (
 	"github.com/go-jimu/components/ddd/message"
-	"github.com/go-jimu/template/internal/business/notification/application/command"
+	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
+	"github.com/go-jimu/template/internal/business/notification/application"
 	"github.com/go-jimu/template/internal/business/notification/transport/messagesubscriber"
-	userintegrationv1 "github.com/go-jimu/template/pkg/gen/user/integration/v1"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
 	"google.golang.org/protobuf/proto"
@@ -13,9 +13,9 @@ import (
 
 // Module wires the Notification bounded context.
 var Module = fx.Module(
-	"domain.notification",
+	"business.notification",
 	fx.Provide(
-		command.NewSendWelcomeNotificationHandler,
+		application.NewApplication,
 		messagesubscriber.NewUserRegisteredSubscriber,
 	),
 	fx.Invoke(func(
@@ -28,11 +28,11 @@ var Module = fx.Module(
 			func() proto.Message { return &userintegrationv1.UserRegisteredV1{} },
 		); err != nil {
 			return oops.With("operation", "message.payload.register").
-				Wrap(oops.Wrap(err))
+				Wrap(err)
 		}
 		if err := registry.Subscribe(subscriber); err != nil {
 			return oops.With("operation", "message.subscriber.register").
-				Wrap(oops.Wrap(err))
+				Wrap(err)
 		}
 		return nil
 	}),

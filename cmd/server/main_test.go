@@ -3,13 +3,9 @@ package main
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/business/notification"
-	"github.com/go-jimu/template/internal/business/user"
-	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
@@ -28,7 +24,7 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.Chdir(".."); err != nil {
+	if err = os.Chdir("../.."); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -40,7 +36,7 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 	var option Option
 	if err = loader.Load(
 		&option,
-		loader.WithConfigurationDirectory("./configs", "defaults"),
+		loader.WithConfigurationDirectory(configDirectory, "defaults"),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -54,8 +50,11 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 			option.MySQL.Port,
 		)
 	}
-	if option.EventBus.BufferSize != 1024 {
-		t.Fatalf("EventBus.BufferSize = %d, want 1024", option.EventBus.BufferSize)
+	if option.EventBus.BufferSize != 1024 || option.EventBus.Workers != 4 {
+		t.Fatalf("EventBus = %+v, want buffer-size 1024 and 4 workers", option.EventBus)
+	}
+	if option.Kafka.FailurePolicy != "drop" {
+		t.Fatalf("Kafka.FailurePolicy = %q, want drop", option.Kafka.FailurePolicy)
 	}
 	if len(option.Kafka.Brokers) != 1 ||
 		option.Kafka.Brokers[0] != "localhost:9092" {
@@ -72,14 +71,7 @@ func TestApplicationDependencyGraphIsComplete(t *testing.T) {
 		Connect:  connectrpc.Option{},
 	}
 	if err := fx.ValidateApp(
-		fx.Supply(option),
-		fx.Provide(sloghelper.NewLog),
-		fx.Provide(eventbus.NewDispatcher),
-		pkg.Module,
-		user.Module,
-		notification.Module,
-		fx.StartTimeout(15*time.Second),
-		fx.StopTimeout(30*time.Second),
+		application(option),
 		fx.NopLogger,
 	); err != nil {
 		t.Fatal(err)

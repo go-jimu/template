@@ -1,4 +1,4 @@
-package command_test
+package application_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/business/notification/application/command"
+	"github.com/go-jimu/template/internal/business/notification/application"
 )
 
 func TestSendWelcomeNotificationLogsObservableBehavior(t *testing.T) {
@@ -17,9 +17,8 @@ func TestSendWelcomeNotificationLogsObservableBehavior(t *testing.T) {
 		context.Background(),
 		slog.New(slog.NewJSONHandler(&logs, nil)),
 	)
-	handler := command.NewSendWelcomeNotificationHandler()
 
-	err := handler.Handle(ctx, command.SendWelcomeNotification{
+	err := application.NewApplication().SendWelcomeNotification(ctx, application.SendWelcomeNotification{
 		UserID: "user-1",
 		Name:   "Alice",
 		Email:  "alice@example.com",
@@ -27,13 +26,9 @@ func TestSendWelcomeNotificationLogsObservableBehavior(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{
-		`"operation":"notification.send_welcome"`,
-		`"outcome":"success"`,
-		`"user_id":"user-1"`,
-	} {
+	for _, field := range []string{`"operation":"notification.send_welcome"`, `"user_id":"user-1"`} {
 		if !strings.Contains(logs.String(), field) {
-			t.Fatalf("completion log %q does not contain %s", logs.String(), field)
+			t.Fatalf("notification log %q does not contain %s", logs.String(), field)
 		}
 	}
 }

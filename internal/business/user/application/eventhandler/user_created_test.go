@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-jimu/components/ddd/message"
 	"github.com/go-jimu/components/sloghelper"
+	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
 	"github.com/go-jimu/template/internal/business/user/application/eventhandler"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	userintegrationv1 "github.com/go-jimu/template/pkg/gen/user/integration/v1"
 )
 
 type publisherSpy struct {

@@ -152,10 +152,19 @@ func forbiddenBusinessImport(module, contextName, layer, imported string) string
 			if importedLayer == "infrastructure" {
 				return "Transport may not depend on Infrastructure"
 			}
+		case "infrastructure":
+			if importedLayer == "transport" {
+				return "Infrastructure may not depend on Transport"
+			}
 		}
 	}
 
 	localPrefix := module + "/"
+	if layer == "application" || layer == "infrastructure" {
+		if isPrivateRPCContract(module, imported) {
+			return "only Transport may import the private RPC contract"
+		}
+	}
 	switch layer {
 	case "domain":
 		if strings.HasPrefix(imported, localPrefix) &&
@@ -188,6 +197,10 @@ func forbiddenBusinessImport(module, contextName, layer, imported string) string
 		) || imported == "database/sql" || imported == "net/http" {
 			return "Application may not import protocol, persistence, broker, or runtime mechanics"
 		}
+	case "infrastructure":
+		if hasAnyPrefix(imported, "connectrpc.com/", "google.golang.org/grpc") || imported == "net/http" {
+			return "Infrastructure may not import request protocol mechanics"
+		}
 	case "transport":
 		if strings.HasPrefix(imported, module+"/internal/pkg/") {
 			return "Transport may not own shared runtime mechanics"
@@ -205,6 +218,17 @@ func forbiddenBusinessImport(module, contextName, layer, imported string) string
 	return ""
 }
 
+// isPrivateRPCContract reports imports of generated gen/<context>/private
+// packages, the request contract that Transport adapts.
+func isPrivateRPCContract(module, imported string) bool {
+	relativeImport, ok := strings.CutPrefix(imported, module+"/gen/")
+	if !ok {
+		return false
+	}
+	parts := strings.Split(relativeImport, "/")
+	return len(parts) > 1 && parts[1] == "private"
+}
+
 func hasAnyPrefix(value string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(value, prefix) {
@@ -212,4 +236,25 @@ func hasAnyPrefix(value string, prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+func TestForbiddenBusinessImportRules(t *testing.T) {
+	const module = "example.com/app"
+	for _, test := range []struct {
+		layer, imported string
+		forbidden       bool
+	}{
+		{"application", module + "/gen/user/private/v1", true},
+		{"application", module + "/gen/user/integration/v1", false},
+		{"infrastructure", module + "/gen/user/private/v1/userv1connect", true},
+		{"infrastructure", module + "/internal/business/user/transport/connectrpc", true},
+		{"infrastructure", module + "/internal/business/user/application/query", false},
+		{"infrastructure", "connectrpc.com/connect", true},
+		{"transport", module + "/gen/user/private/v1", false},
+	} {
+		reason := forbiddenBusinessImport(module, "user", test.layer, test.imported)
+		if (reason != "") != test.forbidden {
+			t.Errorf("%s importing %s: reason %q, forbidden want %v", test.layer, test.imported, reason, test.forbidden)
+		}
+	}
 }

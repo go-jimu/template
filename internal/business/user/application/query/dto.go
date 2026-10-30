@@ -7,10 +7,10 @@ type User struct {
 	Email string
 }
 
-// UserPage is a page of User read models.
+// UserPage is one page of Users, newest first.
 type UserPage struct {
-	Users    []User
-	Total    int
-	Page     int
-	PageSize int
+	Users []User
+	// NextCursor continues after the last User of this page; empty when no
+	// more Users match.
+	NextCursor string
 }

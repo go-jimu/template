@@ -5,11 +5,9 @@ import (
 	"context"
 
 	connect "connectrpc.com/connect"
+	userv1 "github.com/go-jimu/template/gen/user/private/v1"
+	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
-	"github.com/go-jimu/template/internal/business/user/application/command"
-	"github.com/go-jimu/template/internal/business/user/application/query"
-	userv1 "github.com/go-jimu/template/pkg/gen/user/v1"
-	"github.com/go-jimu/template/pkg/gen/user/v1/userv1connect"
 	"github.com/samber/oops"
 )
 
@@ -30,7 +28,7 @@ func (h *Handler) Create(
 	ctx context.Context,
 	request *connect.Request[userv1.CreateRequest],
 ) (*connect.Response[userv1.CreateResponse], error) {
-	result, err := h.application.Commands.Create.Handle(ctx, command.CreateUser{
+	result, err := h.application.CreateUser(ctx, application.CreateUser{
 		Name:     request.Msg.GetName(),
 		Password: request.Msg.GetPassword(),
 		Email:    request.Msg.GetEmail(),
@@ -39,7 +37,7 @@ func (h *Handler) Create(
 		return nil, mapError(err)
 	}
 	return connect.NewResponse(&userv1.CreateResponse{
-		User: createdUserToProto(result),
+		User: userToProto(result),
 	}), nil
 }
 
@@ -54,12 +52,12 @@ func (h *Handler) Get(
 			oops.With("field", "id").Errorf("id is required"),
 		)
 	}
-	result, err := h.application.Queries.Get.Handle(ctx, request.Msg.GetId())
+	result, err := h.application.GetUser(ctx, request.Msg.GetId())
 	if err != nil {
 		return nil, mapError(err)
 	}
 	return connect.NewResponse(&userv1.GetResponse{
-		User: queryUserToProto(result),
+		User: readUserToProto(result),
 	}), nil
 }
 
@@ -74,7 +72,7 @@ func (h *Handler) ChangePassword(
 			oops.With("field", "id").Errorf("id is required"),
 		)
 	}
-	err := h.application.Commands.ChangePassword.Handle(ctx, command.ChangePassword{
+	err := h.application.ChangePassword(ctx, application.ChangePassword{
 		UserID:          request.Msg.GetId(),
 		CurrentPassword: request.Msg.GetCurrentPassword(),
 		NewPassword:     request.Msg.GetNewPassword(),
@@ -90,30 +88,34 @@ func (h *Handler) List(
 	ctx context.Context,
 	request *connect.Request[userv1.ListRequest],
 ) (*connect.Response[userv1.ListResponse], error) {
-	if request.Msg.GetPage() < 0 || request.Msg.GetPageSize() < 0 {
+	if request.Msg.GetPageSize() < 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			oops.With("page", request.Msg.GetPage()).
-				With("page_size", request.Msg.GetPageSize()).
-				Errorf("page and page_size cannot be negative"),
+			oops.With("page_size", request.Msg.GetPageSize()).
+				Errorf("page_size cannot be negative"),
 		)
 	}
-	result, err := h.application.Queries.List.Handle(ctx, query.ListUsers{
+	after, err := decodePageToken(request.Msg.GetPageToken())
+	if err != nil {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			oops.With("field", "page_token").Errorf("page_token is malformed"),
+		)
+	}
+	result, err := h.application.ListUsers(ctx, application.ListUsers{
 		NamePrefix: request.Msg.GetNamePrefix(),
-		Page:       int(request.Msg.GetPage()),
 		PageSize:   int(request.Msg.GetPageSize()),
+		After:      after,
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
 	users := make([]*userv1.User, len(result.Users))
 	for index := range result.Users {
-		users[index] = queryUserToProto(result.Users[index])
+		users[index] = readUserToProto(result.Users[index])
 	}
 	return connect.NewResponse(&userv1.ListResponse{
-		Users:    users,
-		Total:    int64(result.Total),
-		Page:     int32(result.Page),
-		PageSize: int32(result.PageSize),
+		Users:         users,
+		NextPageToken: encodePageToken(result.NextCursor),
 	}), nil
 }

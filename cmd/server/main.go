@@ -28,25 +28,34 @@ type Option struct {
 	Connect  connectrpc.Option  `json:"connect" toml:"connect" yaml:"connect"`
 }
 
+// configDirectory is relative to the repository root, where the server runs.
+const configDirectory = "./configs/server"
+
+// application lists the modules in start order. pkg.Lifecycle comes last so
+// it can order the runtimes the bounded contexts registered with.
+func application(option Option) fx.Option {
+	return fx.Options(
+		fx.Supply(option),
+		fx.Provide(sloghelper.NewLog),
+		pkg.Module,
+		user.Module,
+		notification.Module,
+		pkg.Lifecycle,
+		fx.StartTimeout(15*time.Second),
+		fx.StopTimeout(30*time.Second),
+	)
+}
+
 func main() {
 	var option Option
 	if err := loader.Load(
 		&option,
-		loader.WithConfigurationDirectory("./configs", "defaults"),
+		loader.WithConfigurationDirectory(configDirectory, "defaults"),
 	); err != nil {
 		slog.Error("failed to load configuration", sloghelper.Error(oops.Wrap(err)))
 		os.Exit(1)
 	}
-	app := fx.New(
-		fx.Supply(option),
-		fx.Provide(sloghelper.NewLog),
-		fx.Provide(eventbus.NewDispatcher),
-		pkg.Module,
-		user.Module,
-		notification.Module,
-		fx.StartTimeout(15*time.Second),
-		fx.StopTimeout(30*time.Second),
-	)
+	app := fx.New(application(option))
 	slog.Info("starting application")
 	app.Run()
 }

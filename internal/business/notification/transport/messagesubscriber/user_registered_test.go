@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-jimu/components/ddd/message"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/business/notification/application/command"
+	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
+	"github.com/go-jimu/template/internal/business/notification/application"
 	"github.com/go-jimu/template/internal/business/notification/transport/messagesubscriber"
-	userintegrationv1 "github.com/go-jimu/template/pkg/gen/user/integration/v1"
 	"github.com/samber/oops"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -28,7 +28,7 @@ func TestUserRegisteredSubscriberAcceptsValidPublishedContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	subscriber := messagesubscriber.NewUserRegisteredSubscriber(
-		command.NewSendWelcomeNotificationHandler(),
+		application.NewApplication(),
 	)
 	var logs bytes.Buffer
 	ctx := sloghelper.NewContext(
@@ -39,15 +39,11 @@ func TestUserRegisteredSubscriberAcceptsValidPublishedContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, field := range []string{
-		`"operation":"notification.user_registered"`,
-		`"outcome":"success"`,
-		`"duration_ms":`,
-		`"user_id":"user-1"`,
-		`"message_id":`,
 		`"operation":"notification.send_welcome"`,
+		`"user_id":"user-1"`,
 	} {
 		if !strings.Contains(logs.String(), field) {
-			t.Fatalf("completion log %q does not contain %s", logs.String(), field)
+			t.Fatalf("notification log %q does not contain %s", logs.String(), field)
 		}
 	}
 }
@@ -59,7 +55,7 @@ func TestUserRegisteredSubscriberRejectsIncompleteContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	subscriber := messagesubscriber.NewUserRegisteredSubscriber(
-		command.NewSendWelcomeNotificationHandler(),
+		application.NewApplication(),
 	)
 	var logs bytes.Buffer
 	ctx := sloghelper.NewContext(

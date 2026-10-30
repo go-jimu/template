@@ -49,12 +49,12 @@ func (o Option) Validate() error {
 	if _, err := time.ParseDuration(o.MaxIdleTime); err != nil {
 		return oops.With("option", "max_idle_time").
 			With("value", o.MaxIdleTime).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if _, err := time.ParseDuration(o.MaxLifetime); err != nil {
 		return oops.With("option", "max_lifetime").
 			With("value", o.MaxLifetime).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func NewMySQLDriver(
 	if err != nil {
 		return nil, oops.With("host", option.Host).
 			With("database", option.Database).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	engine.SetLogger(NewXormSlog(logger))
 	engine.ShowSQL(false)
@@ -92,14 +92,14 @@ func NewMySQLDriver(
 		_ = engine.Close()
 		return nil, oops.With("option", "max_idle_time").
 			With("value", option.MaxIdleTime).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	maxLifetime, err := time.ParseDuration(option.MaxLifetime)
 	if err != nil {
 		_ = engine.Close()
 		return nil, oops.With("option", "max_lifetime").
 			With("value", option.MaxLifetime).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	engine.SetConnMaxIdleTime(maxIdleTime)
 	engine.SetConnMaxLifetime(maxLifetime)
@@ -113,7 +113,7 @@ func NewMySQLDriver(
 				return oops.With("host", option.Host).
 					With("port", option.Port).
 					With("database", option.Database).
-					Wrap(oops.Wrap(err))
+					Wrap(err)
 			}
 			logger.InfoContext(
 				ctx,

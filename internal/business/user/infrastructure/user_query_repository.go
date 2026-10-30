@@ -30,7 +30,7 @@ func (r *userQueryRepository) Get(ctx context.Context, userID string) (query.Use
 	if err != nil {
 		return query.User{}, oops.With("operation", "user.query.get").
 			With("user_id", userID).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if !found {
 		return query.User{}, oops.With("operation", "user.query.get").
@@ -40,49 +40,35 @@ func (r *userQueryRepository) Get(ctx context.Context, userID string) (query.Use
 	return userReadModelFromDO(data), nil
 }
 
-// List returns a stable, normalized page of non-deleted User read models.
+// List returns one keyset page of non-deleted User read models, newest first.
+// UUIDv7 IDs sort in creation order, so the ID alone is a stable cursor.
 func (r *userQueryRepository) List(ctx context.Context, filter query.ListFilter) (query.UserPage, error) {
-	countSession := r.engine.Context(ctx).Where("deleted_at = 0")
-	if filter.NamePrefix != "" {
-		countSession = countSession.Where("name LIKE ?", filter.NamePrefix+"%")
-	}
-	total, err := countSession.Count(new(userDO))
-	if err != nil {
-		return query.UserPage{}, oops.With("operation", "user.query.count").
-			With("name_prefix", filter.NamePrefix).
-			With("page", filter.Page).
-			With("page_size", filter.PageSize).
-			Wrap(oops.Wrap(err))
-	}
-
-	rows := make([]userDO, 0, filter.PageSize)
-	listSession := r.engine.Context(ctx).
+	session := r.engine.Context(ctx).
 		Cols("id", "name", "email").
 		Where("deleted_at = 0")
 	if filter.NamePrefix != "" {
-		listSession = listSession.Where("name LIKE ?", filter.NamePrefix+"%")
+		session = session.Where("name LIKE ?", filter.NamePrefix+"%")
 	}
-	offset := (filter.Page - 1) * filter.PageSize
-	err = listSession.
-		Desc("created_at", "id").
-		Limit(filter.PageSize, offset).
-		Find(&rows)
-	if err != nil {
+	if filter.After != "" {
+		session = session.Where("id < ?", filter.After)
+	}
+	rows := make([]userDO, 0, filter.Limit+1)
+	if err := session.Desc("id").Limit(filter.Limit + 1).Find(&rows); err != nil {
 		return query.UserPage{}, oops.With("operation", "user.query.list").
 			With("name_prefix", filter.NamePrefix).
-			With("page", filter.Page).
-			With("page_size", filter.PageSize).
-			Wrap(oops.Wrap(err))
+			With("after", filter.After).
+			With("limit", filter.Limit).
+			Wrap(err)
 	}
 
-	users := make([]query.User, len(rows))
-	for index := range rows {
-		users[index] = userReadModelFromDO(&rows[index])
+	page := query.UserPage{}
+	if len(rows) > filter.Limit {
+		rows = rows[:filter.Limit]
+		page.NextCursor = rows[len(rows)-1].ID
 	}
-	return query.UserPage{
-		Users:    users,
-		Total:    int(total),
-		Page:     filter.Page,
-		PageSize: filter.PageSize,
-	}, nil
+	page.Users = make([]query.User, len(rows))
+	for index := range rows {
+		page.Users[index] = userReadModelFromDO(&rows[index])
+	}
+	return page, nil
 }

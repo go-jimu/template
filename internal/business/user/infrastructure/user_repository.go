@@ -33,7 +33,7 @@ func (r *userRepository) Get(ctx context.Context, userID string) (*domain.User, 
 	if err != nil {
 		return nil, oops.With("operation", "user.get").
 			With("user_id", userID).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if !found {
 		return nil, oops.With("operation", "user.get").
@@ -66,7 +66,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 		if err != nil {
 			return oops.With("operation", "user.insert").
 				With("user_id", user.ID).
-				Wrap(oops.Wrap(err))
+				Wrap(err)
 		}
 		if affected != 1 {
 			return oops.With("operation", "user.insert").
@@ -86,7 +86,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 		return oops.With("operation", "user.update").
 			With("user_id", user.ID).
 			With("version", user.Version).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if affected != 1 {
 		return oops.With("operation", "user.update").

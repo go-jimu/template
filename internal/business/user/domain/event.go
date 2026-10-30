@@ -19,3 +19,6 @@ type UserCreated struct {
 
 // Kind implements event.Event.
 func (UserCreated) Kind() event.Kind { return EventKindUserCreated }
+
+// Key implements event.Keyed, so the events of one User are handled in order.
+func (e UserCreated) Key() string { return e.UserID }

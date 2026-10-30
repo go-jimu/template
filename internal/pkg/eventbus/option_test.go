@@ -8,7 +8,7 @@ import (
 
 func TestConfigValidate(t *testing.T) {
 	valid := eventbus.Config{
-		BufferSize: 1, DelayClose: "0s", HandlerTimeout: "1s",
+		BufferSize: 1, Workers: 1, DelayClose: "0s", HandlerTimeout: "1s",
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatal(err)

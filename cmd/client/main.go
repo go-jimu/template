@@ -9,8 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/go-jimu/components/sloghelper"
-	userv1 "github.com/go-jimu/template/pkg/gen/user/v1"
-	"github.com/go-jimu/template/pkg/gen/user/v1/userv1connect"
+	userv1 "github.com/go-jimu/template/gen/user/private/v1"
+	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/samber/oops"
 )
 

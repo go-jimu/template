@@ -105,7 +105,7 @@ const file_user_integration_v1_user_registered_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12;\n" +
 	"\voccurred_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAtBKZIgithub.com/go-jimu/template/pkg/gen/user/integration/v1;userintegrationv1b\x06proto3"
+	"occurredAtBGZEgithub.com/go-jimu/template/gen/user/integration/v1;userintegrationv1b\x06proto3"
 
 var (
 	file_user_integration_v1_user_registered_proto_rawDescOnce sync.Once

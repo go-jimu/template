@@ -1,4 +1,6 @@
-// Package eventbus owns the in-process Domain Event dispatcher lifecycle.
+// Package eventbus builds the in-process Domain Event dispatcher. The
+// dispatcher is drained by pkg.Lifecycle, which orders it after the servers
+// and consumers that feed it.
 package eventbus
 
 import (
@@ -10,12 +12,12 @@ import (
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/samber/oops"
-	"go.uber.org/fx"
 )
 
 // Config contains Domain Event dispatcher runtime settings.
 type Config struct {
 	BufferSize     int    `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
+	Workers        int    `json:"workers" toml:"workers" yaml:"workers"`
 	DelayClose     string `json:"delay-close" toml:"delay-close" yaml:"delay-close"`
 	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
 }
@@ -25,11 +27,14 @@ func (c Config) Validate() error {
 	if c.BufferSize < 1 {
 		return fmt.Errorf("eventbus buffer-size must be positive")
 	}
+	if c.Workers < 1 {
+		return fmt.Errorf("eventbus workers must be positive")
+	}
 	delayClose, err := time.ParseDuration(c.DelayClose)
 	if err != nil {
 		return oops.With("option", "delay-close").
 			With("value", c.DelayClose).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if delayClose < 0 {
 		return fmt.Errorf("eventbus delay-close cannot be negative")
@@ -38,7 +43,7 @@ func (c Config) Validate() error {
 	if err != nil {
 		return oops.With("option", "handler-timeout").
 			With("value", c.HandlerTimeout).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	if handlerTimeout <= 0 {
 		return fmt.Errorf("eventbus handler-timeout must be positive")
@@ -46,9 +51,8 @@ func (c Config) Validate() error {
 	return nil
 }
 
-// NewDispatcher creates one shared dispatcher and closes it through Fx lifecycle.
+// NewDispatcher creates the one shared dispatcher.
 func NewDispatcher(
-	lifecycle fx.Lifecycle,
 	config Config,
 	logger *slog.Logger,
 ) (event.Dispatcher, event.Subscriber, error) {
@@ -59,19 +63,20 @@ func NewDispatcher(
 	if err != nil {
 		return nil, nil, oops.With("option", "delay-close").
 			With("value", config.DelayClose).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	handlerTimeout, err := time.ParseDuration(config.HandlerTimeout)
 	if err != nil {
 		return nil, nil, oops.With("option", "handler-timeout").
 			With("value", config.HandlerTimeout).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 
 	eventLogger := logger.With(slog.String("component", "eventbus"))
 	dispatcher := event.NewDispatcher(
 		event.WithLogger(eventLogger),
 		event.WithBufferSize(config.BufferSize),
+		event.WithWorkers(config.Workers),
 		event.WithDelayClose(delayClose),
 		event.WithHandlerTimeout(handlerTimeout),
 		event.WithContextFactory(func(ctx context.Context, domainEvent event.Event) context.Context {
@@ -87,10 +92,5 @@ func NewDispatcher(
 			)
 		}),
 	)
-	lifecycle.Append(fx.Hook{
-		OnStop: func(ctx context.Context) error {
-			return oops.Wrap(dispatcher.Close(ctx))
-		},
-	})
 	return dispatcher, dispatcher, nil
 }

@@ -1,4 +1,6 @@
 // Package connectrpc owns the shared Connect, gRPC, and gRPC-Web HTTP server.
+// pkg.Lifecycle starts and stops serving through ServeHook, so the server stops
+// taking requests before the runtimes behind it shut down.
 package connectrpc
 
 import (
@@ -8,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -32,7 +35,7 @@ func (o Option) Validate() error {
 	if _, err := net.ResolveTCPAddr("tcp", o.Addr); err != nil {
 		return oops.With("address", o.Addr).
 			With("operation", "connectrpc.address.resolve").
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 	}
 	return nil
 }
@@ -52,24 +55,37 @@ type server struct {
 	router       *chi.Mux
 	httpServer   *http.Server
 	listener     net.Listener
+	ready        atomic.Bool
+}
+
+// ServeOut exposes the Server to bounded contexts and its ServeHook to
+// pkg.Lifecycle.
+type ServeOut struct {
+	fx.Out
+
+	Server    Server
+	ServeHook ServeHook
+}
+
+// ServeHook starts and stops serving requests.
+type ServeHook struct {
+	fx.Hook
 }
 
 var _ Server = (*server)(nil)
 
-// NewServer creates the shared ConnectRPC server.
+// NewServer creates the shared ConnectRPC server. /healthz reports that the
+// process is alive; /readyz reports whether it is serving, and turns
+// unavailable once shutdown begins so load balancers stop routing to it.
 func NewServer(
-	lifecycle fx.Lifecycle,
 	shutdowner fx.Shutdowner,
 	option Option,
 	logger *slog.Logger,
-) (Server, error) {
+) (ServeOut, error) {
 	if err := option.Validate(); err != nil {
-		return nil, err
+		return ServeOut{}, err
 	}
 	router := chi.NewRouter()
-	router.Get("/healthz", func(response http.ResponseWriter, _ *http.Request) {
-		response.WriteHeader(http.StatusOK)
-	})
 	connectServer := &server{
 		option:       option,
 		logger:       logger,
@@ -77,6 +93,16 @@ func NewServer(
 		interceptors: []connect.Interceptor{NewCarrier(logger).Intercept()},
 		router:       router,
 	}
+	router.Get("/healthz", func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusOK)
+	})
+	router.Get("/readyz", func(response http.ResponseWriter, _ *http.Request) {
+		if !connectServer.ready.Load() {
+			response.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		response.WriteHeader(http.StatusOK)
+	})
 	connectServer.httpServer = &http.Server{
 		Addr:              option.Addr,
 		Handler:           h2c.NewHandler(router, &http2.Server{}),
@@ -84,28 +110,29 @@ func NewServer(
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    16 * 1024,
 	}
+	return ServeOut{
+		Server:    connectServer,
+		ServeHook: ServeHook{fx.Hook{OnStart: connectServer.start, OnStop: connectServer.stop}},
+	}, nil
+}
 
-	lifecycle.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			listener, err := net.Listen("tcp", option.Addr)
-			if err != nil {
-				return oops.With("address", option.Addr).
-					With("operation", "connectrpc.listen").
-					Wrap(oops.Wrap(err))
-			}
-			connectServer.listener = listener
-			connectServer.logger.Info(
-				"ConnectRPC server started",
-				slog.String("address", listener.Addr().String()),
-			)
-			go connectServer.serve()
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return oops.Wrap(connectServer.httpServer.Shutdown(ctx))
-		},
-	})
-	return connectServer, nil
+func (s *server) start(context.Context) error {
+	listener, err := net.Listen("tcp", s.option.Addr)
+	if err != nil {
+		return oops.With("address", s.option.Addr).
+			With("operation", "connectrpc.listen").
+			Wrap(err)
+	}
+	s.listener = listener
+	s.logger.Info("ConnectRPC server started", slog.String("address", listener.Addr().String()))
+	go s.serve()
+	s.ready.Store(true)
+	return nil
+}
+
+func (s *server) stop(ctx context.Context) error {
+	s.ready.Store(false)
+	return oops.Wrap(s.httpServer.Shutdown(ctx))
 }
 
 // GetGlobalInterceptors returns an isolated copy of shared interceptors.

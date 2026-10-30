@@ -21,6 +21,9 @@ func TestServerStartsHealthEndpointAndShutsDown(t *testing.T) {
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
 		fx.Provide(sharedconnectrpc.NewServer),
+		fx.Invoke(func(lifecycle fx.Lifecycle, hook sharedconnectrpc.ServeHook) {
+			lifecycle.Append(hook.Hook)
+		}),
 		fx.Invoke(func(server sharedconnectrpc.Server) {
 			server.Register("/test.Service/", http.HandlerFunc(
 				func(response http.ResponseWriter, _ *http.Request) {
@@ -33,15 +36,17 @@ func TestServerStartsHealthEndpointAndShutsDown(t *testing.T) {
 	app.RequireStart()
 
 	client := &http.Client{Timeout: time.Second}
-	response, err := client.Get("http://" + server.Address() + "/healthz")
-	if err != nil {
-		t.Fatal(err)
+	for _, probe := range []string{"/healthz", "/readyz"} {
+		response, err := client.Get("http://" + server.Address() + probe)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", probe, response.StatusCode)
+		}
 	}
-	_ = response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("health status = %d, want 200", response.StatusCode)
-	}
-	response, err = client.Get("http://" + server.Address() + "/test.Service/Call")
+	response, err := client.Get("http://" + server.Address() + "/test.Service/Call")
 	if err != nil {
 		t.Fatal(err)
 	}

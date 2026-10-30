@@ -3,6 +3,7 @@ logger:
   output: console
 eventbus:
   buffer-size: 1024
+  workers: 4
   delay-close: 1s
   handler-timeout: 10s
 kafka:
@@ -12,6 +13,8 @@ kafka:
   consumer-group: ${KAFKA_CONSUMER_GROUP:go-jimu-template}
   topics:
     - user.integration.v1.UserRegisteredV1
+  # drop commits a failed message; dlq first publishes it to <topic>.dlq.
+  failure-policy: ${KAFKA_FAILURE_POLICY:drop}
 mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}

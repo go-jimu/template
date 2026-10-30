@@ -9,8 +9,8 @@ import (
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/ddd/message"
 	"github.com/go-jimu/components/sloghelper"
+	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	userintegrationv1 "github.com/go-jimu/template/pkg/gen/user/integration/v1"
 	"github.com/samber/oops"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -76,7 +76,7 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, domainEvent event.Event
 		err = oops.With("stage", stage).
 			With("user_id", created.UserID).
 			With("message_kind", string(message.KindOf(payload))).
-			Wrap(oops.Wrap(err))
+			Wrap(err)
 		logger.ErrorContext(
 			ctx,
 			"integration message publication failed",

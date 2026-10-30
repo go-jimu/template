@@ -1,43 +1,29 @@
+// Package application implements the User context's protocol-neutral use
+// cases.
 package application
 
 import (
-	"github.com/go-jimu/template/internal/business/user/application/command"
+	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/template/internal/business/user/application/query"
+	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
-// Commands groups the write-side User use cases exposed to Transport adapters.
-type Commands struct {
-	Create         *command.CreateUserHandler
-	ChangePassword *command.ChangePasswordHandler
-}
-
-// Queries groups the read-side User use cases exposed to Transport adapters.
-type Queries struct {
-	Get  *query.GetUserHandler
-	List *query.ListUsersHandler
-}
-
-// Application is the protocol-independent entry point for the User context.
+// Application is the User context's entry point for Transport adapters.
 type Application struct {
-	Commands Commands
-	Queries  Queries
+	repository domain.Repository
+	queries    query.Repository
+	dispatcher event.Dispatcher
 }
 
-// NewApplication assembles the User context's commands and queries.
+// NewApplication assigns the User use-case dependencies.
 func NewApplication(
-	create *command.CreateUserHandler,
-	changePassword *command.ChangePasswordHandler,
-	get *query.GetUserHandler,
-	list *query.ListUsersHandler,
+	repository domain.Repository,
+	queries query.Repository,
+	dispatcher event.Dispatcher,
 ) *Application {
 	return &Application{
-		Commands: Commands{
-			Create:         create,
-			ChangePassword: changePassword,
-		},
-		Queries: Queries{
-			Get:  get,
-			List: list,
-		},
+		repository: repository,
+		queries:    queries,
+		dispatcher: dispatcher,
 	}
 }

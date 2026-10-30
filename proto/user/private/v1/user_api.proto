@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package user.v1;
+package user.private.v1;
 
-option go_package = "github.com/go-jimu/template/pkg/gen/user/v1;userv1";
+option go_package = "github.com/go-jimu/template/gen/user/private/v1;userv1";
 
 // UserService exposes User commands and queries over Connect, gRPC, and gRPC-Web.
 service UserService {
@@ -12,7 +12,7 @@ service UserService {
   rpc Get(GetRequest) returns (GetResponse) {}
   // ChangePassword changes one user's credentials.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {}
-  // List returns a normalized page of users.
+  // List returns users newest first, one cursor page at a time.
   rpc List(ListRequest) returns (ListResponse) {}
 }
 
@@ -67,24 +67,27 @@ message ChangePasswordRequest {
 // ChangePasswordResponse is empty when the command succeeds.
 message ChangePasswordResponse {}
 
-// ListRequest contains optional name and pagination filters.
+// ListRequest contains an optional name filter and a cursor page request.
 message ListRequest {
+  reserved 2;
+  reserved "page";
+
   // name_prefix filters users by a leading name prefix.
   string name_prefix = 1;
-  // page is one-based; zero selects the default.
-  int32 page = 2;
-  // page_size is capped by Application policy.
+  // page_size is capped by Application policy; zero selects the default.
   int32 page_size = 3;
+  // page_token continues after the last user of the previous page; empty
+  // starts from the newest user.
+  string page_token = 4;
 }
 
-// ListResponse returns a normalized page of users.
+// ListResponse returns one page of users, newest first.
 message ListResponse {
+  reserved 2, 3, 4;
+  reserved "total", "page", "page_size";
+
   // users contains the current page.
   repeated User users = 1;
-  // total is the number of matching users.
-  int64 total = 2;
-  // page is the normalized one-based page number.
-  int32 page = 3;
-  // page_size is the normalized page size.
-  int32 page_size = 4;
+  // next_page_token continues the listing; empty when no more users remain.
+  string next_page_token = 5;
 }

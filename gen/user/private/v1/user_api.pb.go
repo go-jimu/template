@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: user/v1/user_api.proto
+// source: user/private/v1/user_api.proto
 
 package userv1
 
@@ -36,7 +36,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_user_v1_user_api_proto_msgTypes[0]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +48,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[0]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +61,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{0}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *User) GetId() string {
@@ -100,7 +100,7 @@ type CreateRequest struct {
 
 func (x *CreateRequest) Reset() {
 	*x = CreateRequest{}
-	mi := &file_user_v1_user_api_proto_msgTypes[1]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -112,7 +112,7 @@ func (x *CreateRequest) String() string {
 func (*CreateRequest) ProtoMessage() {}
 
 func (x *CreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[1]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -125,7 +125,7 @@ func (x *CreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRequest.ProtoReflect.Descriptor instead.
 func (*CreateRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{1}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateRequest) GetName() string {
@@ -160,7 +160,7 @@ type CreateResponse struct {
 
 func (x *CreateResponse) Reset() {
 	*x = CreateResponse{}
-	mi := &file_user_v1_user_api_proto_msgTypes[2]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -172,7 +172,7 @@ func (x *CreateResponse) String() string {
 func (*CreateResponse) ProtoMessage() {}
 
 func (x *CreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[2]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -185,7 +185,7 @@ func (x *CreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResponse.ProtoReflect.Descriptor instead.
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{2}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateResponse) GetUser() *User {
@@ -206,7 +206,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_user_v1_user_api_proto_msgTypes[3]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +218,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[3]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +231,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{3}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRequest) GetId() string {
@@ -252,7 +252,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_user_v1_user_api_proto_msgTypes[4]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -264,7 +264,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[4]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -277,7 +277,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{4}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetResponse) GetUser() *User {
@@ -302,7 +302,7 @@ type ChangePasswordRequest struct {
 
 func (x *ChangePasswordRequest) Reset() {
 	*x = ChangePasswordRequest{}
-	mi := &file_user_v1_user_api_proto_msgTypes[5]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +314,7 @@ func (x *ChangePasswordRequest) String() string {
 func (*ChangePasswordRequest) ProtoMessage() {}
 
 func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[5]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +327,7 @@ func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
 func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{5}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChangePasswordRequest) GetId() string {
@@ -360,7 +360,7 @@ type ChangePasswordResponse struct {
 
 func (x *ChangePasswordResponse) Reset() {
 	*x = ChangePasswordResponse{}
-	mi := &file_user_v1_user_api_proto_msgTypes[6]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +372,7 @@ func (x *ChangePasswordResponse) String() string {
 func (*ChangePasswordResponse) ProtoMessage() {}
 
 func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[6]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,25 +385,26 @@ func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordResponse.ProtoReflect.Descriptor instead.
 func (*ChangePasswordResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{6}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{6}
 }
 
-// ListRequest contains optional name and pagination filters.
+// ListRequest contains an optional name filter and a cursor page request.
 type ListRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// name_prefix filters users by a leading name prefix.
 	NamePrefix string `protobuf:"bytes,1,opt,name=name_prefix,json=namePrefix,proto3" json:"name_prefix,omitempty"`
-	// page is one-based; zero selects the default.
-	Page int32 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
-	// page_size is capped by Application policy.
-	PageSize      int32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// page_size is capped by Application policy; zero selects the default.
+	PageSize int32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// page_token continues after the last user of the previous page; empty
+	// starts from the newest user.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRequest) Reset() {
 	*x = ListRequest{}
-	mi := &file_user_v1_user_api_proto_msgTypes[7]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +416,7 @@ func (x *ListRequest) String() string {
 func (*ListRequest) ProtoMessage() {}
 
 func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[7]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +429,7 @@ func (x *ListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
 func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{7}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListRequest) GetNamePrefix() string {
@@ -438,13 +439,6 @@ func (x *ListRequest) GetNamePrefix() string {
 	return ""
 }
 
-func (x *ListRequest) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
 func (x *ListRequest) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
@@ -452,24 +446,27 @@ func (x *ListRequest) GetPageSize() int32 {
 	return 0
 }
 
-// ListResponse returns a normalized page of users.
+func (x *ListRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// ListResponse returns one page of users, newest first.
 type ListResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// users contains the current page.
 	Users []*User `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	// total is the number of matching users.
-	Total int64 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
-	// page is the normalized one-based page number.
-	Page int32 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
-	// page_size is the normalized page size.
-	PageSize      int32 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// next_page_token continues the listing; empty when no more users remain.
+	NextPageToken string `protobuf:"bytes,5,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListResponse) Reset() {
 	*x = ListResponse{}
-	mi := &file_user_v1_user_api_proto_msgTypes[8]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +478,7 @@ func (x *ListResponse) String() string {
 func (*ListResponse) ProtoMessage() {}
 
 func (x *ListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_user_v1_user_api_proto_msgTypes[8]
+	mi := &file_user_private_v1_user_api_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +491,7 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
 func (*ListResponse) Descriptor() ([]byte, []int) {
-	return file_user_v1_user_api_proto_rawDescGZIP(), []int{8}
+	return file_user_private_v1_user_api_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListResponse) GetUsers() []*User {
@@ -504,32 +501,18 @@ func (x *ListResponse) GetUsers() []*User {
 	return nil
 }
 
-func (x *ListResponse) GetTotal() int64 {
+func (x *ListResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.Total
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
-func (x *ListResponse) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
+var File_user_private_v1_user_api_proto protoreflect.FileDescriptor
 
-func (x *ListResponse) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-var File_user_v1_user_api_proto protoreflect.FileDescriptor
-
-const file_user_v1_user_api_proto_rawDesc = "" +
+const file_user_private_v1_user_api_proto_rawDesc = "" +
 	"\n" +
-	"\x16user/v1/user_api.proto\x12\auser.v1\"@\n" +
+	"\x1euser/private/v1/user_api.proto\x12\x0fuser.private.v1\"@\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -537,71 +520,70 @@ const file_user_v1_user_api_proto_rawDesc = "" +
 	"\rCreateRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x14\n" +
-	"\x05email\x18\x03 \x01(\tR\x05email\"3\n" +
-	"\x0eCreateResponse\x12!\n" +
-	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"\x1c\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\";\n" +
+	"\x0eCreateResponse\x12)\n" +
+	"\x04user\x18\x01 \x01(\v2\x15.user.private.v1.UserR\x04user\"\x1c\n" +
 	"\n" +
 	"GetRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"0\n" +
-	"\vGetResponse\x12!\n" +
-	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"u\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"8\n" +
+	"\vGetResponse\x12)\n" +
+	"\x04user\x18\x01 \x01(\v2\x15.user.private.v1.UserR\x04user\"u\n" +
 	"\x15ChangePasswordRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\x12!\n" +
 	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"\x18\n" +
-	"\x16ChangePasswordResponse\"_\n" +
+	"\x16ChangePasswordResponse\"v\n" +
 	"\vListRequest\x12\x1f\n" +
 	"\vname_prefix\x18\x01 \x01(\tR\n" +
-	"namePrefix\x12\x12\n" +
-	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"z\n" +
-	"\fListResponse\x12#\n" +
-	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\x12\x12\n" +
-	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x04 \x01(\x05R\bpageSize2\x8a\x02\n" +
-	"\vUserService\x12;\n" +
-	"\x06Create\x12\x16.user.v1.CreateRequest\x1a\x17.user.v1.CreateResponse\"\x00\x122\n" +
-	"\x03Get\x12\x13.user.v1.GetRequest\x1a\x14.user.v1.GetResponse\"\x00\x12S\n" +
-	"\x0eChangePassword\x12\x1e.user.v1.ChangePasswordRequest\x1a\x1f.user.v1.ChangePasswordResponse\"\x00\x125\n" +
-	"\x04List\x12\x14.user.v1.ListRequest\x1a\x15.user.v1.ListResponse\"\x00B4Z2github.com/go-jimu/template/pkg/gen/user/v1;userv1b\x06proto3"
+	"namePrefix\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tR\tpageTokenJ\x04\b\x02\x10\x03R\x04page\"\x8d\x01\n" +
+	"\fListResponse\x12+\n" +
+	"\x05users\x18\x01 \x03(\v2\x15.user.private.v1.UserR\x05users\x12&\n" +
+	"\x0fnext_page_token\x18\x05 \x01(\tR\rnextPageTokenJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05totalR\x04pageR\tpage_size2\xca\x02\n" +
+	"\vUserService\x12K\n" +
+	"\x06Create\x12\x1e.user.private.v1.CreateRequest\x1a\x1f.user.private.v1.CreateResponse\"\x00\x12B\n" +
+	"\x03Get\x12\x1b.user.private.v1.GetRequest\x1a\x1c.user.private.v1.GetResponse\"\x00\x12c\n" +
+	"\x0eChangePassword\x12&.user.private.v1.ChangePasswordRequest\x1a'.user.private.v1.ChangePasswordResponse\"\x00\x12E\n" +
+	"\x04List\x12\x1c.user.private.v1.ListRequest\x1a\x1d.user.private.v1.ListResponse\"\x00B8Z6github.com/go-jimu/template/gen/user/private/v1;userv1b\x06proto3"
 
 var (
-	file_user_v1_user_api_proto_rawDescOnce sync.Once
-	file_user_v1_user_api_proto_rawDescData []byte
+	file_user_private_v1_user_api_proto_rawDescOnce sync.Once
+	file_user_private_v1_user_api_proto_rawDescData []byte
 )
 
-func file_user_v1_user_api_proto_rawDescGZIP() []byte {
-	file_user_v1_user_api_proto_rawDescOnce.Do(func() {
-		file_user_v1_user_api_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_user_v1_user_api_proto_rawDesc), len(file_user_v1_user_api_proto_rawDesc)))
+func file_user_private_v1_user_api_proto_rawDescGZIP() []byte {
+	file_user_private_v1_user_api_proto_rawDescOnce.Do(func() {
+		file_user_private_v1_user_api_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_user_private_v1_user_api_proto_rawDesc), len(file_user_private_v1_user_api_proto_rawDesc)))
 	})
-	return file_user_v1_user_api_proto_rawDescData
+	return file_user_private_v1_user_api_proto_rawDescData
 }
 
-var file_user_v1_user_api_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_user_v1_user_api_proto_goTypes = []any{
-	(*User)(nil),                   // 0: user.v1.User
-	(*CreateRequest)(nil),          // 1: user.v1.CreateRequest
-	(*CreateResponse)(nil),         // 2: user.v1.CreateResponse
-	(*GetRequest)(nil),             // 3: user.v1.GetRequest
-	(*GetResponse)(nil),            // 4: user.v1.GetResponse
-	(*ChangePasswordRequest)(nil),  // 5: user.v1.ChangePasswordRequest
-	(*ChangePasswordResponse)(nil), // 6: user.v1.ChangePasswordResponse
-	(*ListRequest)(nil),            // 7: user.v1.ListRequest
-	(*ListResponse)(nil),           // 8: user.v1.ListResponse
+var file_user_private_v1_user_api_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_user_private_v1_user_api_proto_goTypes = []any{
+	(*User)(nil),                   // 0: user.private.v1.User
+	(*CreateRequest)(nil),          // 1: user.private.v1.CreateRequest
+	(*CreateResponse)(nil),         // 2: user.private.v1.CreateResponse
+	(*GetRequest)(nil),             // 3: user.private.v1.GetRequest
+	(*GetResponse)(nil),            // 4: user.private.v1.GetResponse
+	(*ChangePasswordRequest)(nil),  // 5: user.private.v1.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil), // 6: user.private.v1.ChangePasswordResponse
+	(*ListRequest)(nil),            // 7: user.private.v1.ListRequest
+	(*ListResponse)(nil),           // 8: user.private.v1.ListResponse
 }
-var file_user_v1_user_api_proto_depIdxs = []int32{
-	0, // 0: user.v1.CreateResponse.user:type_name -> user.v1.User
-	0, // 1: user.v1.GetResponse.user:type_name -> user.v1.User
-	0, // 2: user.v1.ListResponse.users:type_name -> user.v1.User
-	1, // 3: user.v1.UserService.Create:input_type -> user.v1.CreateRequest
-	3, // 4: user.v1.UserService.Get:input_type -> user.v1.GetRequest
-	5, // 5: user.v1.UserService.ChangePassword:input_type -> user.v1.ChangePasswordRequest
-	7, // 6: user.v1.UserService.List:input_type -> user.v1.ListRequest
-	2, // 7: user.v1.UserService.Create:output_type -> user.v1.CreateResponse
-	4, // 8: user.v1.UserService.Get:output_type -> user.v1.GetResponse
-	6, // 9: user.v1.UserService.ChangePassword:output_type -> user.v1.ChangePasswordResponse
-	8, // 10: user.v1.UserService.List:output_type -> user.v1.ListResponse
+var file_user_private_v1_user_api_proto_depIdxs = []int32{
+	0, // 0: user.private.v1.CreateResponse.user:type_name -> user.private.v1.User
+	0, // 1: user.private.v1.GetResponse.user:type_name -> user.private.v1.User
+	0, // 2: user.private.v1.ListResponse.users:type_name -> user.private.v1.User
+	1, // 3: user.private.v1.UserService.Create:input_type -> user.private.v1.CreateRequest
+	3, // 4: user.private.v1.UserService.Get:input_type -> user.private.v1.GetRequest
+	5, // 5: user.private.v1.UserService.ChangePassword:input_type -> user.private.v1.ChangePasswordRequest
+	7, // 6: user.private.v1.UserService.List:input_type -> user.private.v1.ListRequest
+	2, // 7: user.private.v1.UserService.Create:output_type -> user.private.v1.CreateResponse
+	4, // 8: user.private.v1.UserService.Get:output_type -> user.private.v1.GetResponse
+	6, // 9: user.private.v1.UserService.ChangePassword:output_type -> user.private.v1.ChangePasswordResponse
+	8, // 10: user.private.v1.UserService.List:output_type -> user.private.v1.ListResponse
 	7, // [7:11] is the sub-list for method output_type
 	3, // [3:7] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -609,26 +591,26 @@ var file_user_v1_user_api_proto_depIdxs = []int32{
 	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_user_v1_user_api_proto_init() }
-func file_user_v1_user_api_proto_init() {
-	if File_user_v1_user_api_proto != nil {
+func init() { file_user_private_v1_user_api_proto_init() }
+func file_user_private_v1_user_api_proto_init() {
+	if File_user_private_v1_user_api_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_v1_user_api_proto_rawDesc), len(file_user_v1_user_api_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_private_v1_user_api_proto_rawDesc), len(file_user_private_v1_user_api_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_user_v1_user_api_proto_goTypes,
-		DependencyIndexes: file_user_v1_user_api_proto_depIdxs,
-		MessageInfos:      file_user_v1_user_api_proto_msgTypes,
+		GoTypes:           file_user_private_v1_user_api_proto_goTypes,
+		DependencyIndexes: file_user_private_v1_user_api_proto_depIdxs,
+		MessageInfos:      file_user_private_v1_user_api_proto_msgTypes,
 	}.Build()
-	File_user_v1_user_api_proto = out.File
-	file_user_v1_user_api_proto_goTypes = nil
-	file_user_v1_user_api_proto_depIdxs = nil
+	File_user_private_v1_user_api_proto = out.File
+	file_user_private_v1_user_api_proto_goTypes = nil
+	file_user_private_v1_user_api_proto_depIdxs = nil
 }

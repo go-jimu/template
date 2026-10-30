@@ -12,6 +12,7 @@ func TestOptionValidate(t *testing.T) {
 		ClientID:      "go-jimu-template",
 		ConsumerGroup: "go-jimu-template",
 		Topics:        []string{"user.integration.v1.UserRegisteredV1"},
+		FailurePolicy: "drop",
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
@@ -25,6 +26,7 @@ func TestOptionValidate(t *testing.T) {
 		{name: "client id", mutate: func(option *messagebus.Option) { option.ClientID = "" }},
 		{name: "consumer group", mutate: func(option *messagebus.Option) { option.ConsumerGroup = "" }},
 		{name: "topics", mutate: func(option *messagebus.Option) { option.Topics = nil }},
+		{name: "failure policy", mutate: func(option *messagebus.Option) { option.FailurePolicy = "retry" }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

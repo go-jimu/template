@@ -34,18 +34,22 @@ func TestDispatcherRejectsEventsAfterFxStop(t *testing.T) {
 		fx.Supply(
 			eventbus.Config{
 				BufferSize:     1,
+				Workers:        1,
 				DelayClose:     "0s",
 				HandlerTimeout: "1s",
 			},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
 		fx.Provide(eventbus.NewDispatcher),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+			lifecycle.Append(fx.StopHook(dispatcher.Close))
+		}),
 		fx.Populate(&dispatcher),
 	)
 	app.RequireStart()
 	app.RequireStop()
 
-	if err := dispatcher.Dispatch(testEvent{}); !errors.Is(err, event.ErrDispatcherClosed) {
+	if err := dispatcher.Dispatch(context.Background(), testEvent{}); !errors.Is(err, event.ErrDispatcherClosed) {
 		t.Fatalf("Dispatch() error = %v, want %v", err, event.ErrDispatcherClosed)
 	}
 }
@@ -58,18 +62,22 @@ func TestDispatcherDrainsAcceptedEventsDuringFxStop(t *testing.T) {
 		fx.Supply(
 			eventbus.Config{
 				BufferSize:     1,
+				Workers:        1,
 				DelayClose:     "0s",
 				HandlerTimeout: "1s",
 			},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
 		fx.Provide(eventbus.NewDispatcher),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+			lifecycle.Append(fx.StopHook(dispatcher.Close))
+		}),
 		fx.Populate(&dispatcher, &subscriber),
 	)
 	handler := &testHandler{handled: make(chan struct{}, 1)}
 	subscriber.Subscribe(handler)
 	app.RequireStart()
-	if err := dispatcher.Dispatch(testEvent{}); err != nil {
+	if err := dispatcher.Dispatch(context.Background(), testEvent{}); err != nil {
 		t.Fatal(err)
 	}
 	app.RequireStop()

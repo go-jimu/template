@@ -11,7 +11,7 @@ func userToDO(user *domain.User) *userDO {
 	return &userDO{
 		ID:       user.ID,
 		Name:     user.Name,
-		Password: user.HashedPassword,
+		Password: append([]byte(nil), user.HashedPassword...),
 		Email:    user.Email,
 		Version:  user.Version,
 	}
@@ -27,7 +27,7 @@ func userFromDO(data *userDO) (*domain.User, error) {
 		ID:             data.ID,
 		Name:           data.Name,
 		Email:          data.Email,
-		HashedPassword: data.Password,
+		HashedPassword: append([]byte(nil), data.Password...),
 		Version:        data.Version,
 		Events:         event.NewCollection(),
 	}
