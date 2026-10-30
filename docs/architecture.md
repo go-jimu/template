@@ -52,7 +52,7 @@ Connect request
 | ConnectRPC request or response contract | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
 | Published Integration Message contract | `proto/<context>/integration/v1` | Publication boundary and Message Subscriber |
 | Write use case | Model and design sections for the scenario | `Application` method and Domain behavior |
-| Product read | Read-model section in design | `Application` method, `application/query`, and Infrastructure QueryRepository |
+| Product read | Read-model section in design | `application/query` query object and Infrastructure QueryRepository |
 | MySQL mapping or SQL | Aggregate/persistence design | `infrastructure` and a new `migrations/NNN_*.sql` |
 | Broker, server, config, or lifecycle mechanics | Runtime design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
 | Dependency injection and registration | Runtime design | bounded-context module; `cmd` only selects modules |

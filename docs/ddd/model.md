@@ -74,7 +74,9 @@ provider selection, retries, or a Notification Aggregate because it owns no
 business lifecycle or invariant yet.
 
 `UserRegisteredV1` is treated as a historical snapshot of the registered User.
-The Notification context maps that published language into its local use case.
+The Notification context translates that published language into its own: the
+registered User becomes a `Recipient`, and the message ID is the `Reference`
+back to the triggering fact.
 Repeated delivery may repeat the observable example behavior; no business
 idempotency rule is defined.
 

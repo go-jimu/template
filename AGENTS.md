@@ -44,9 +44,9 @@ docs/ddd/model.md                  business semantic authority
 docs/ddd/design.md                 tactical design authority
 internal/business/<context>/
   domain/                          Aggregate, behavior, errors, Domain Events, write Repository
-  application/application.go       Application struct; use cases are its methods
-  application/assembler.go         Aggregate-to-Application-DTO assembly
-  application/query/               read DTOs and QueryRepository port
+  application/application.go       write-side Application; use cases are its methods
+  application/assembler.go         Aggregate-to-result-DTO assembly, when there is any
+  application/query/               read side: query objects, read DTOs, QueryRepository port
   application/eventhandler/        same-context Domain Event reactions/publication boundary
   transport/connectrpc/            inbound API mapping
   transport/messagesubscriber/     inbound Integration Message mapping
@@ -93,13 +93,23 @@ uses an Integration Message or another explicitly accepted published boundary.
 
 ### Application
 
-- Each context has one `Application` struct; every use case is a method on it,
-  grouped into files by scenario (for example `registration.go`, `read.go`).
+- Everything crossing the Application boundary is a DTO: Commands and Queries
+  in, results and read models out. Never return an Aggregate.
+- Each context has one write-side `Application` struct; every write use case is
+  a method on it, with its Command in the same file. Split files by business
+  responsibility (for example `registration.go`) once there is more than one;
+  a single use case stays in `application.go`.
 - Write use cases orchestrate: load/create one Aggregate, invoke Domain
   behavior, save, then drain and dispatch Domain Events with `DispatchAll`.
-- Read use cases return read DTOs through an Application-owned QueryRepository
-  and do not load Aggregates for product views. Lists page by keyset cursor.
-- Use-case inputs are protocol independent; Application never imports the
+- Reads live in `application/query` as a query object per read model (for
+  example `query.Users`). They have no invariant, transaction, or Domain Event,
+  so they read the QueryRepository directly and never load Aggregates. Lists
+  page by keyset cursor.
+- `assembler.go` maps Aggregates to result DTOs. A context without that mapping
+  has no `assembler.go`.
+- A context receiving another context's published language translates it into
+  its own Command (Notification's `Recipient`, not User's fields).
+- Commands and Queries are protocol independent; Application never imports the
   private RPC contract under `gen/<context>/private`.
 - Application does not import Infrastructure, Transport, database sessions,
   Kafka clients, or `internal/pkg` runtime packages.
@@ -119,7 +129,8 @@ uses an Integration Message or another explicitly accepted published boundary.
 - Connect handlers validate/map protocol input, delegate once, map output, and
   translate errors.
 - Message Subscribers validate/map an Integration Message and delegate once to
-  an Application method.
+  an Application method. Connect handlers send writes to the Application and
+  reads to the query object.
 - Message Subscriber failures are returned without an inner error log; the
   Kafka observer is the outer boundary.
 - Transport does not call Repositories, mutate Aggregates, control
@@ -198,7 +209,7 @@ Add those only after an explicit production reliability decision.
 | --- | --- | --- |
 | Business rule or invariant | `model.md` | Domain and Domain tests |
 | Write use case | Model scenario + `design.md` | `Application` method + Domain behavior |
-| Product read | Read-model design | `Application` method, `application/query` + QueryRepository adapter |
+| Product read | Read-model design | `application/query` query object + QueryRepository adapter |
 | Connect API | API Proto | `transport/connectrpc`; regenerate |
 | Published message | Model relationship + integration Proto | publication boundary + Subscriber |
 | MySQL mapping | Aggregate/persistence design | `infrastructure` + a new `migrations/NNN_*.sql` |

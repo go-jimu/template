@@ -58,10 +58,14 @@ func (s *UserRegisteredSubscriber) Handle(
 			With("user_id", payload.GetUserId()).
 			Wrap(err)
 	}
+	// Translate User's published language into Notification's own. The message
+	// ID stays the same on redelivery, so it is the Reference.
 	if err := s.application.SendWelcomeNotification(ctx, application.SendWelcomeNotification{
-		UserID: payload.GetUserId(),
-		Name:   payload.GetName(),
-		Email:  payload.GetEmail(),
+		Recipient: application.Recipient{
+			Address:     payload.GetEmail(),
+			DisplayName: payload.GetName(),
+		},
+		Reference: integrationMessage.ID(),
 	}); err != nil {
 		return oops.With("message_id", integrationMessage.ID()).
 			With("message_kind", string(integrationMessage.Kind())).

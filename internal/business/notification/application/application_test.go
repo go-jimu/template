@@ -19,16 +19,18 @@ func TestSendWelcomeNotificationLogsObservableBehavior(t *testing.T) {
 	)
 
 	err := application.NewApplication().SendWelcomeNotification(ctx, application.SendWelcomeNotification{
-		UserID: "user-1",
-		Name:   "Alice",
-		Email:  "alice@example.com",
+		Recipient: application.Recipient{Address: "alice@example.com", DisplayName: "Alice"},
+		Reference: "message-1",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{`"operation":"notification.send_welcome"`, `"user_id":"user-1"`} {
+	for _, field := range []string{`"operation":"notification.send_welcome"`, `"reference":"message-1"`} {
 		if !strings.Contains(logs.String(), field) {
 			t.Fatalf("notification log %q does not contain %s", logs.String(), field)
 		}
+	}
+	if strings.Contains(logs.String(), "alice@example.com") {
+		t.Fatalf("notification log %q contains the recipient address", logs.String())
 	}
 }

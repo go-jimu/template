@@ -7,6 +7,7 @@ import (
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/application/eventhandler"
+	"github.com/go-jimu/template/internal/business/user/application/query"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
 	userconnectrpc "github.com/go-jimu/template/internal/business/user/transport/connectrpc"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
@@ -21,6 +22,7 @@ var Module = fx.Module(
 		infrastructure.NewUserQueryRepository,
 		eventhandler.NewUserCreatedHandler,
 		application.NewApplication,
+		query.NewUsers,
 		userconnectrpc.NewHandler,
 	),
 	fx.Invoke(func(

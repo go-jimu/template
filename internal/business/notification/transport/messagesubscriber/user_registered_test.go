@@ -40,7 +40,7 @@ func TestUserRegisteredSubscriberAcceptsValidPublishedContract(t *testing.T) {
 	}
 	for _, field := range []string{
 		`"operation":"notification.send_welcome"`,
-		`"user_id":"user-1"`,
+		`"reference":"` + integrationMessage.ID() + `"`,
 	} {
 		if !strings.Contains(logs.String(), field) {
 			t.Fatalf("notification log %q does not contain %s", logs.String(), field)

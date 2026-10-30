@@ -8,19 +8,22 @@ import (
 	userv1 "github.com/go-jimu/template/gen/user/private/v1"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
+	"github.com/go-jimu/template/internal/business/user/application/query"
 	"github.com/samber/oops"
 )
 
 // Handler implements the generated UserService transport contract.
 type Handler struct {
 	application *application.Application
+	users       *query.Users
 }
 
 var _ userv1connect.UserServiceHandler = (*Handler)(nil)
 
-// NewHandler creates the User ConnectRPC Transport adapter.
-func NewHandler(app *application.Application) userv1connect.UserServiceHandler {
-	return &Handler{application: app}
+// NewHandler creates the User ConnectRPC Transport adapter. Writes go to the
+// Application and reads to the query side.
+func NewHandler(app *application.Application, users *query.Users) userv1connect.UserServiceHandler {
+	return &Handler{application: app, users: users}
 }
 
 // Create maps the protocol request to the CreateUser command.
@@ -41,7 +44,7 @@ func (h *Handler) Create(
 	}), nil
 }
 
-// Get maps the protocol request to the GetUser query.
+// Get maps the protocol request to the Users.Get query.
 func (h *Handler) Get(
 	ctx context.Context,
 	request *connect.Request[userv1.GetRequest],
@@ -52,7 +55,7 @@ func (h *Handler) Get(
 			oops.With("field", "id").Errorf("id is required"),
 		)
 	}
-	result, err := h.application.GetUser(ctx, request.Msg.GetId())
+	result, err := h.users.Get(ctx, request.Msg.GetId())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -102,7 +105,7 @@ func (h *Handler) List(
 			oops.With("field", "page_token").Errorf("page_token is malformed"),
 		)
 	}
-	result, err := h.application.ListUsers(ctx, application.ListUsers{
+	result, err := h.users.List(ctx, query.ListUsers{
 		NamePrefix: request.Msg.GetNamePrefix(),
 		PageSize:   int(request.Msg.GetPageSize()),
 		After:      after,

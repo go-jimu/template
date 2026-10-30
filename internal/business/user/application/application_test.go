@@ -11,7 +11,6 @@ import (
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/application"
-	"github.com/go-jimu/template/internal/business/user/application/query"
 	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
@@ -33,19 +32,6 @@ func (r *repositoryFake) Save(context.Context, *domain.User) error {
 		*r.order = append(*r.order, "save")
 	}
 	return r.saveErr
-}
-
-type queryRepositoryFake struct {
-	filter query.ListFilter
-}
-
-func (*queryRepositoryFake) Get(context.Context, string) (query.User, error) {
-	return query.User{}, nil
-}
-
-func (r *queryRepositoryFake) List(_ context.Context, filter query.ListFilter) (query.UserPage, error) {
-	r.filter = filter
-	return query.UserPage{}, nil
 }
 
 type dispatcherFake struct {
@@ -71,7 +57,7 @@ func (*dispatcherFake) Close(context.Context) error { return nil }
 func TestCreateUserPersistsBeforeDispatch(t *testing.T) {
 	order := make([]string, 0, 2)
 	dispatcher := &dispatcherFake{order: &order}
-	app := application.NewApplication(&repositoryFake{order: &order}, nil, dispatcher)
+	app := application.NewApplication(&repositoryFake{order: &order}, dispatcher)
 
 	result, err := app.CreateUser(context.Background(), application.CreateUser{
 		Name: "Alice", Password: "current-pass", Email: "alice@example.com",
@@ -93,7 +79,7 @@ func TestCreateUserPersistsBeforeDispatch(t *testing.T) {
 func TestCreateUserDoesNotDispatchWhenSaveFails(t *testing.T) {
 	saveErr := errors.New("database unavailable")
 	dispatcher := &dispatcherFake{}
-	app := application.NewApplication(&repositoryFake{saveErr: saveErr}, nil, dispatcher)
+	app := application.NewApplication(&repositoryFake{saveErr: saveErr}, dispatcher)
 
 	_, err := app.CreateUser(context.Background(), application.CreateUser{
 		Name: "Alice", Password: "current-pass", Email: "alice@example.com",
@@ -108,7 +94,7 @@ func TestCreateUserDoesNotDispatchWhenSaveFails(t *testing.T) {
 
 func TestCreateUserSucceedsWhenDispatchFails(t *testing.T) {
 	dispatcher := &dispatcherFake{dispatchErr: event.ErrDispatcherClosed}
-	app := application.NewApplication(&repositoryFake{}, nil, dispatcher)
+	app := application.NewApplication(&repositoryFake{}, dispatcher)
 	var logs bytes.Buffer
 	ctx := sloghelper.NewContext(
 		context.Background(),
@@ -133,7 +119,7 @@ func TestChangePasswordSavesChangedUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	repository := &repositoryFake{user: user}
-	app := application.NewApplication(repository, nil, &dispatcherFake{})
+	app := application.NewApplication(repository, &dispatcherFake{})
 
 	err = app.ChangePassword(context.Background(), application.ChangePassword{
 		UserID: user.ID, CurrentPassword: "current-pass", NewPassword: "next-pass-1",
@@ -152,7 +138,7 @@ func TestChangePasswordDoesNotSaveRejectedChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	repository := &repositoryFake{user: user}
-	app := application.NewApplication(repository, nil, &dispatcherFake{})
+	app := application.NewApplication(repository, &dispatcherFake{})
 
 	err = app.ChangePassword(context.Background(), application.ChangePassword{
 		UserID: user.ID, CurrentPassword: "wrong-pass", NewPassword: "next-pass-1",
@@ -162,24 +148,5 @@ func TestChangePasswordDoesNotSaveRejectedChange(t *testing.T) {
 	}
 	if repository.saveCalls != 0 {
 		t.Fatalf("save calls = %d, want 0", repository.saveCalls)
-	}
-}
-
-func TestListUsersNormalizesPageSize(t *testing.T) {
-	for _, tc := range []struct {
-		pageSize, wantLimit int
-	}{{0, 20}, {-1, 20}, {7, 7}, {500, 100}} {
-		queries := &queryRepositoryFake{}
-		app := application.NewApplication(nil, queries, nil)
-
-		if _, err := app.ListUsers(context.Background(), application.ListUsers{
-			NamePrefix: "Al", PageSize: tc.pageSize, After: "cursor",
-		}); err != nil {
-			t.Fatal(err)
-		}
-		want := query.ListFilter{NamePrefix: "Al", Limit: tc.wantLimit, After: "cursor"}
-		if queries.filter != want {
-			t.Fatalf("page size %d: filter = %#v, want %#v", tc.pageSize, queries.filter, want)
-		}
 	}
 }

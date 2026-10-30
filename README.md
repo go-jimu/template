@@ -28,7 +28,8 @@ tactical choices. Code and tests show how those decisions are implemented.
 
 - A User Aggregate with validated registration and credential behavior.
 - A write Repository shaped as `Get`/`Save` with optimistic locking.
-- CQRS-style read DTOs through an Application-owned QueryRepository.
+- CQRS-style reads through a query object and QueryRepository, apart from the
+  write-side Application.
 - A dedicated ConnectRPC Transport layer that only performs inbound mapping.
 - Domain Events for same-context facts and Integration Messages for
   cross-context published language.
@@ -53,9 +54,9 @@ internal/business/
   user/
     domain/                       Aggregate, errors, Domain Events, Repository port
     application/
-      application.go              Application; use cases are its methods
+      application.go              write-side Application; use cases are its methods
       assembler.go                Aggregate-to-DTO assembly
-      query/                      read DTOs and QueryRepository port
+      query/                      read side: query.Users, read DTOs, QueryRepository port
       eventhandler/               Domain Event reaction/publication boundary
     transport/connectrpc/         inbound generated-protocol adapter
     infrastructure/               xorm write/read adapters and conversion
@@ -89,7 +90,7 @@ Runtime ----------------> modules and technical adapters
 | --- | --- |
 | Change a User invariant | `internal/business/user/domain` |
 | Add a write use case | an `Application` method plus Domain behavior |
-| Add a product read | an `Application` method, `application/query`, and the QueryRepository adapter |
+| Add a product read | a query object in `application/query` and the QueryRepository adapter |
 | Change the Connect API | `proto/user/private/v1`, regenerate, then Transport mapping |
 | Publish a new cross-context fact | integration Proto plus User publication boundary |
 | Consume an Integration Message | receiving `transport/messagesubscriber` |
@@ -105,7 +106,7 @@ Do not infer a business rule from a directory or database column.
 A query never loads the write Aggregate:
 
 ~~~text
-Connect request -> Transport -> Application.GetUser -> QueryRepository -> read DTO
+Connect request -> Transport -> query.Users -> QueryRepository -> read DTO
 ~~~
 
 A write use case changes one Aggregate:
@@ -233,8 +234,8 @@ belongs under `gen/` and is never edited manually.
    collaboration, or runtime ownership changes.
 4. Put one-Aggregate rules on the Aggregate or a Value Object.
 5. Put write orchestration in an `Application` method.
-6. Put product reads in an `Application` method backed by `application/query`
-   and its QueryRepository.
+6. Put product reads in a query object in `application/query`, backed by its
+   QueryRepository.
 7. Map protocol input/output in Transport; never import generated API code into
    Domain.
 8. Use a Domain Event for a same-context fact and an Integration Message for

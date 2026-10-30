@@ -99,7 +99,7 @@ func newUserClient(
 	repository query.Repository,
 ) (userv1connect.UserServiceClient, func()) {
 	t.Helper()
-	service := userconnectrpc.NewHandler(application.NewApplication(nil, repository, nil))
+	service := userconnectrpc.NewHandler(application.NewApplication(nil, nil), query.NewUsers(repository))
 	_, handler := userv1connect.NewUserServiceHandler(service)
 	server := httptest.NewServer(handler)
 	client := userv1connect.NewUserServiceClient(server.Client(), server.URL)

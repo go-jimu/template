@@ -28,12 +28,14 @@ Domain concurrency error.
 
 ## User read model
 
-Product reads use an Application-owned QueryRepository and read DTOs.
-`GetUser` and `ListUsers` do not load the write Aggregate. Page-size
-normalization belongs to `ListUsers`; xorm query construction remains in
-Infrastructure.
+Product reads live in `application/query`, separate from the write-side
+`Application`: the `query.Users` query object serves `Get` and `List` straight
+from the QueryRepository. Reads have no invariant, transaction, or Domain
+Event, so they skip the Aggregate and the write-side orchestration, and the two
+sides keep separate dependencies. Page-size normalization belongs to
+`Users.List`; xorm query construction remains in Infrastructure.
 
-`ListUsers` pages by keyset, newest User first. User IDs are UUIDv7, so ID
+`Users.List` pages by keyset, newest User first. User IDs are UUIDv7, so ID
 order is creation order and the last ID of a page is the cursor: the next page
 reads `id < cursor ORDER BY id DESC`, served by `idx_deleted_at_id`. The
 repository fetches one extra row to know whether a next page exists, and there
@@ -47,7 +49,8 @@ pipeline.
 ## Inbound protocol boundary
 
 ConnectRPC handlers live in the User Transport adapter. They perform protocol
-validation and mapping, delegate once to an Application method, map the result,
+validation and mapping, delegate once to the Application (writes) or
+`query.Users` (reads), map the result,
 and translate errors to Connect codes.
 
 Generated API types remain outside Domain and Application inputs. Unexpected
@@ -75,7 +78,10 @@ Domain or Application.
 
 Notification receives `UserRegisteredV1` through
 `transport/messagesubscriber`. The Subscriber validates the published payload,
-maps it to `Application.SendWelcomeNotification`, and delegates once. Subscriber failures
+translates it into Notification's own language, a `Recipient` with an address
+and display name plus the message ID as `Reference`, and delegates once to
+`Application.SendWelcomeNotification`. Notification does not conform to User's
+model; only the subscriber knows `UserRegisteredV1`. Subscriber failures
 are returned to the Kafka runtime; the Subscriber does not print an inner error
 log.
 
@@ -143,7 +149,8 @@ Each step can still use everything stopped after it.
 
 - Domain tests cover User invariants, password behavior, and recorded facts.
 - Application tests cover orchestration, persistence-before-dispatch ordering,
-  page-size normalization, and the suppressed dispatch failure log.
+  and the suppressed dispatch failure log; query tests cover page-size
+  normalization.
 - Transport tests cover Connect contracts, error mapping, Integration Message
   validation, and one-delegation behavior.
 - Infrastructure tests cover explicit conversion and optimistic-lock SQL
