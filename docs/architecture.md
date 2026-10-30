@@ -32,7 +32,7 @@ designed read/protocol boundary.
 ~~~text
 Connect request
   -> User Transport
-  -> User Application command
+  -> User Application.CreateUser
   -> User Aggregate
   -> User Repository
   -> UserCreated Domain Event
@@ -40,7 +40,7 @@ Connect request
   -> UserRegisteredV1 Integration Message
   -> Kafka runtime
   -> Notification Message Subscriber
-  -> Notification Application command
+  -> Notification Application.SendWelcomeNotification
 ~~~
 
 ## Change routing
@@ -49,12 +49,12 @@ Connect request
 | --- | --- | --- |
 | Business term, invariant, lifecycle, or context authority | `docs/ddd/model.md` | Domain model after the fact is accepted |
 | Aggregate, transaction, Repository, CQRS, or collaboration shape | `docs/ddd/design.md` | Domain/Application plus adapters |
-| ConnectRPC request or response contract | `proto/<context>/v1` | Transport mapping; regenerate `pkg/gen` |
+| ConnectRPC request or response contract | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
 | Published Integration Message contract | `proto/<context>/integration/v1` | Publication boundary and Message Subscriber |
-| Command behavior | Model and design sections for the scenario | `application/command` and Domain behavior |
-| Product read | Read-model section in design | `application/query` and Infrastructure QueryRepository |
-| MySQL mapping or SQL | Aggregate/persistence design | `infrastructure` and `scripts/sql` |
-| Broker, server, config, or lifecycle mechanics | Runtime design | `internal/pkg/<component>` |
+| Write use case | Model and design sections for the scenario | `Application` method and Domain behavior |
+| Product read | Read-model section in design | `Application` method, `application/query`, and Infrastructure QueryRepository |
+| MySQL mapping or SQL | Aggregate/persistence design | `infrastructure` and a new `migrations/NNN_*.sql` |
+| Broker, server, config, or lifecycle mechanics | Runtime design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
 | Dependency injection and registration | Runtime design | bounded-context module; `cmd` only selects modules |
 | Error mapping or logging | Error section in design | Transport/runtime outer boundary |
 

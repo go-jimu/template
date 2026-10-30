@@ -36,24 +36,27 @@ role.
 ## Repository map
 
 ~~~text
-cmd/                               process composition only
-configs/                           component-owned runtime options
+cmd/server/                        server process composition only
+cmd/client/                        example client
+configs/server/                    component-owned runtime options
 docs/architecture.md               architecture navigation and change routing
 docs/ddd/model.md                  business semantic authority
 docs/ddd/design.md                 tactical design authority
 internal/business/<context>/
   domain/                          Aggregate, behavior, errors, Domain Events, write Repository
-  application/command/             write orchestration
-  application/query/               read DTOs and QueryRepository
+  application/application.go       Application struct; use cases are its methods
+  application/assembler.go         Aggregate-to-Application-DTO assembly
+  application/query/               read DTOs and QueryRepository port
   application/eventhandler/        same-context Domain Event reactions/publication boundary
   transport/connectrpc/            inbound API mapping
   transport/messagesubscriber/     inbound Integration Message mapping
   infrastructure/                  xorm, DO conversion, ACLs, outbound adapters
   <context>.go                     bounded-context Fx module
-internal/pkg/                      shared technical runtime and lifecycle
-proto/                             source API and published message contracts
-pkg/gen/                           generated code; never edit manually
-scripts/sql/                       ordered MySQL schema scripts
+internal/pkg/                      shared technical runtime; lifecycle.go orders shutdown
+proto/<context>/private/v1/        ConnectRPC request contracts
+proto/<context>/integration/v1/    published Integration Message contracts
+gen/                               generated code; never edit manually
+migrations/                        ordered MySQL migrations
 ~~~
 
 ## Dependency rules
@@ -90,19 +93,23 @@ uses an Integration Message or another explicitly accepted published boundary.
 
 ### Application
 
-- Commands orchestrate: load/create one Aggregate, invoke Domain behavior,
-  save, then drain and dispatch Domain Events.
-- Queries return read DTOs through an Application-owned QueryRepository and do
-  not load Aggregates for product views.
-- Command/query inputs are protocol independent.
+- Each context has one `Application` struct; every use case is a method on it,
+  grouped into files by scenario (for example `registration.go`, `read.go`).
+- Write use cases orchestrate: load/create one Aggregate, invoke Domain
+  behavior, save, then drain and dispatch Domain Events with `DispatchAll`.
+- Read use cases return read DTOs through an Application-owned QueryRepository
+  and do not load Aggregates for product views. Lists page by keyset cursor.
+- Use-case inputs are protocol independent; Application never imports the
+  private RPC contract under `gen/<context>/private`.
 - Application does not import Infrastructure, Transport, database sessions,
   Kafka clients, or `internal/pkg` runtime packages.
 - Domain Event Handlers consume same-context Domain Events. A selected event may
   be translated into published language and sent through
   `message.Publisher`.
-- Every command, query, and Domain Event Handler emits one completion record per
-  call. Returning failures may log `outcome=failed` at info level but must not
-  print the error when an outer boundary will do so.
+- Application returns errors without logging them or adding context the inner
+  layer already attached. It logs only an error it suppresses.
+- Completion logs belong to the runtime: the ConnectRPC interceptor logs each
+  request and the message runtime logs each handled message.
 
 ### Transport
 
@@ -112,7 +119,7 @@ uses an Integration Message or another explicitly accepted published boundary.
 - Connect handlers validate/map protocol input, delegate once, map output, and
   translate errors.
 - Message Subscribers validate/map an Integration Message and delegate once to
-  an Application command.
+  an Application method.
 - Message Subscriber failures are returned without an inner error log; the
   Kafka observer is the outer boundary.
 - Transport does not call Repositories, mutate Aggregates, control
@@ -124,7 +131,8 @@ uses an Integration Message or another explicitly accepted published boundary.
 
 - xorm Data Objects are separate from Domain objects.
 - DO-to-Aggregate and Aggregate-to-DO conversion is explicit in
-  `infrastructure/converter.go`.
+  `infrastructure/convert.go`, and copies slices so the Aggregate and the DO
+  never share memory.
 - Repository implementations satisfy Domain/Application interfaces with
   compile-time assertions.
 - New User rows store version `1`. Updates compare ID/version and increment the
@@ -135,16 +143,20 @@ uses an Integration Message or another explicitly accepted published boundary.
 
 ### Runtime and composition
 
-- Each component owns its Option/Config validation and resource lifecycle.
-- Each bounded context exposes one Fx module for constructors and
-  registrations.
-- `cmd/main.go` loads/supplies aggregate configuration, selects modules,
-  configures process timeouts, and runs Fx.
+- Each component owns its Option/Config validation. Constructors register only
+  the hooks of the resource they open, such as the database or Kafka client.
+- Each bounded context exposes one Fx module named `business.<context>` for
+  constructors and registrations.
+- `pkg.Lifecycle` registers the hooks that move traffic: the ConnectRPC server,
+  the Kafka consumer, and the Domain Event dispatcher drain. It is listed after
+  every bounded-context module.
+- `cmd/server/main.go` loads/supplies aggregate configuration from
+  `configs/server`, selects modules, configures process timeouts, and runs Fx.
 - Do not move individual component validation, handler registration, client
   construction, or helper functions into `main`.
 - Every goroutine must have an Fx lifecycle stop path.
-- Shutdown stops ingress and background work before the clients they still
-  need.
+- Shutdown runs: server, consumer, dispatcher drain, then clients. `/readyz`
+  turns unavailable as soon as shutdown begins; `/healthz` reports liveness.
 
 ## Events and messages
 
@@ -158,16 +170,18 @@ uses an Integration Message or another explicitly accepted published boundary.
 Never publish a Domain Event struct directly as an Integration Message.
 `UserCreated` and `UserRegisteredV1` are intentionally different types.
 
-The template uses `DropAndCommitPolicy` and intentionally omits task processors,
-outbox, retry, DLQ, durable notification state, and idempotency storage. Add
-those only after an explicit production reliability decision.
+The Kafka `failure-policy` option chooses `drop` (commit and move on) or `dlq`
+(publish to `<topic>.dlq` first). The template intentionally omits task
+processors, outbox, retry, durable notification state, and idempotency storage.
+Add those only after an explicit production reliability decision.
 
 ## Errors and logging
 
-- Use `oops.Wrap(err)` when an external database, broker, network, SDK, or
-  library error enters code we control.
-- Use `oops.With(...).Wrap(err)` at internal layer boundaries to add only useful
-  fields owned by that layer.
+- Wrap an external database, broker, network, SDK, or library error once where
+  it enters code we control, with `oops.With(...).Wrap(err)` carrying the
+  fields that layer owns. Use bare `oops.Wrap(err)` when there is nothing to
+  add.
+- Outer layers return the error as is unless they own a new field.
 - Preserve Domain error identity for `errors.Is` and protocol mapping.
 - Never attach passwords, tokens, full DSNs, or raw secrets.
 - Print an error exactly once at the outermost execution boundary and always
@@ -183,11 +197,11 @@ those only after an explicit production reliability decision.
 | Intent | Read first | Change primarily |
 | --- | --- | --- |
 | Business rule or invariant | `model.md` | Domain and Domain tests |
-| Command orchestration | Model scenario + `design.md` | `application/command` |
-| Product read | Read-model design | `application/query` + QueryRepository adapter |
+| Write use case | Model scenario + `design.md` | `Application` method + Domain behavior |
+| Product read | Read-model design | `Application` method, `application/query` + QueryRepository adapter |
 | Connect API | API Proto | `transport/connectrpc`; regenerate |
 | Published message | Model relationship + integration Proto | publication boundary + Subscriber |
-| MySQL mapping | Aggregate/persistence design | `infrastructure` + `scripts/sql` |
+| MySQL mapping | Aggregate/persistence design | `infrastructure` + a new `migrations/NNN_*.sql` |
 | Kafka/server/config/lifecycle | Runtime design | `internal/pkg/<component>` |
 | Wiring | Runtime design | bounded-context module; root `cmd` only selects |
 
@@ -210,18 +224,24 @@ features unless the user asks for them.
 5. Update model/design only when the accepted meaning or tactical choice
    changes.
 6. Add behavior evidence at the lowest real boundary.
-7. Run the relevant checks, normally `make verify` for a complete change.
+7. Run the relevant checks, normally `make verify` for a complete change and
+   `make integration` when SQL or a repository changes.
 
 Useful commands:
 
 ~~~bash
 make generate   # lint and regenerate Proto contracts
 make test       # race-enabled Go tests with coverage
+make integration # MySQL repository tests in Docker (testcontainers)
 make vet        # Go static analysis
 make verify     # generate + test + vet
-make server     # run the service
+make server     # run cmd/server
 make client     # invoke the example client
 ~~~
 
 Public Go identifiers require comments. Adapters require compile-time interface
-assertions. Generated files under `pkg/gen` are never edited manually.
+assertions. Generated files under `gen/` are never edited manually.
+
+A migration starts with a comment stating its intent, its compatibility with
+running code, and how to reverse it. Never edit an applied migration; add the
+next number.
