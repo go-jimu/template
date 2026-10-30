@@ -6,6 +6,11 @@ PROTOC_GEN_CONNECT_GO_VERSION ?= v1.20.0
 test:
 	go test -race -covermode=atomic -coverprofile=coverage.txt ./...
 
+# integration starts MySQL with testcontainers, so it needs Docker.
+.PHONY: integration
+integration:
+	go test -race -tags integration -run MySQL ./internal/business/user/infrastructure/...
+
 .PHONY: vet
 vet:
 	go vet ./...
@@ -20,7 +25,7 @@ verify: generate test vet
 
 .PHONY: server
 server:
-	go run ./cmd
+	go run ./cmd/server
 
 .PHONY: client
 client:
