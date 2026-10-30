@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package user.private.v1;
+
+option go_package = "github.com/go-jimu/template/gen/user/private/v1;userv1";
+
+// UserService exposes User commands and queries over Connect, gRPC, and gRPC-Web.
+service UserService {
+  // Create registers a new user.
+  rpc Create(CreateRequest) returns (CreateResponse) {}
+  // Get returns one user read model.
+  rpc Get(GetRequest) returns (GetResponse) {}
+  // ChangePassword changes one user's credentials.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {}
+  // List returns users newest first, one cursor page at a time.
+  rpc List(ListRequest) returns (ListResponse) {}
+}
+
+// User is the protocol read model exposed by UserService.
+message User {
+  // id is the stable user identifier.
+  string id = 1;
+  // name is the display name.
+  string name = 2;
+  // email is the normalized email address.
+  string email = 3;
+}
+
+// CreateRequest contains the fields required to register a user.
+message CreateRequest {
+  // name is the display name.
+  string name = 1;
+  // password is the initial raw password.
+  string password = 2;
+  // email is the user's email address.
+  string email = 3;
+}
+
+// CreateResponse returns the newly registered user.
+message CreateResponse {
+  // user is the created read model.
+  User user = 1;
+}
+
+// GetRequest identifies the user to retrieve.
+message GetRequest {
+  // id is the stable user identifier.
+  string id = 1;
+}
+
+// GetResponse returns one user.
+message GetResponse {
+  // user is the requested read model.
+  User user = 1;
+}
+
+// ChangePasswordRequest contains the current and replacement credentials.
+message ChangePasswordRequest {
+  // id is the stable user identifier.
+  string id = 1;
+  // current_password proves knowledge of the current credential.
+  string current_password = 2;
+  // new_password is the replacement credential.
+  string new_password = 3;
+}
+
+// ChangePasswordResponse is empty when the command succeeds.
+message ChangePasswordResponse {}
+
+// ListRequest contains an optional name filter and a cursor page request.
+message ListRequest {
+  reserved 2;
+  reserved "page";
+
+  // name_prefix filters users by a leading name prefix.
+  string name_prefix = 1;
+  // page_size is capped by Application policy; zero selects the default.
+  int32 page_size = 3;
+  // page_token continues after the last user of the previous page; empty
+  // starts from the newest user.
+  string page_token = 4;
+}
+
+// ListResponse returns one page of users, newest first.
+message ListResponse {
+  reserved 2, 3, 4;
+  reserved "total", "page", "page_size";
+
+  // users contains the current page.
+  repeated User users = 1;
+  // next_page_token continues the listing; empty when no more users remain.
+  string next_page_token = 5;
+}

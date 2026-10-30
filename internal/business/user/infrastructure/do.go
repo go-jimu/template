@@ -1,13 +1,11 @@
 package infrastructure
 
-import (
-	"github.com/go-jimu/template/internal/pkg/database"
-)
+import "github.com/go-jimu/template/internal/pkg/database"
 
-type UserDO struct {
+type userDO struct {
 	ID        string             `xorm:"id pk"`
 	Name      string             `xorm:"name"`
-	Password  []byte             `xorm:"password" copier:"HashedPassword"`
+	Password  []byte             `xorm:"password"`
 	Email     string             `xorm:"email"`
 	Version   int                `xorm:"version"`
 	CreatedAt database.Timestamp `xorm:"created_at"`
@@ -15,6 +13,4 @@ type UserDO struct {
 	DeletedAt database.Timestamp `xorm:"deleted_at"`
 }
 
-func (u UserDO) TableName() string {
-	return "user"
-}
+func (userDO) TableName() string { return "user_account" }

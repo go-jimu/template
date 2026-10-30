@@ -5,8 +5,10 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/samber/oops"
 	"xorm.io/xorm/convert"
 )
 
@@ -55,10 +57,12 @@ func (ts *Timestamp) Scan(src any) error {
 		return nil
 
 	case nil:
-		return ErrUnexpectedType
+		return oops.With("source_type", fmt.Sprintf("%T", src)).
+			Wrap(ErrUnexpectedType)
 
 	default:
-		return ErrUnexpectedType
+		return oops.With("source_type", fmt.Sprintf("%T", src)).
+			Wrap(ErrUnexpectedType)
 	}
 }
 
@@ -85,21 +89,24 @@ func (ts *NullTimestamp) Scan(src any) error {
 		return nil
 
 	default:
-		return ErrUnexpectedType
+		return oops.With("source_type", fmt.Sprintf("%T", src)).
+			Wrap(ErrUnexpectedType)
 	}
 }
 
 func (ts *Timestamp) ToDB() ([]byte, error) {
-	return json.Marshal(ts.Time.UnixMilli())
+	data, err := json.Marshal(ts.Time.UnixMilli())
+	return data, oops.Wrap(err)
 }
 
 func (ts *Timestamp) FromDB(data []byte) error {
 	if data == nil {
-		return ErrUnexpectedType
+		return oops.With("source", "database").
+			Wrap(ErrUnexpectedType)
 	}
 	var v int64
 	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+		return oops.Wrap(err)
 	}
 	ts.Time = time.UnixMilli(v)
 	return nil
@@ -107,7 +114,8 @@ func (ts *Timestamp) FromDB(data []byte) error {
 
 func (ts *NullTimestamp) ToDB() ([]byte, error) {
 	if ts.Valid {
-		return json.Marshal(ts.Time.UnixMilli())
+		data, err := json.Marshal(ts.Time.UnixMilli())
+		return data, oops.Wrap(err)
 	}
 	return nil, nil
 }
@@ -119,7 +127,7 @@ func (ts *NullTimestamp) FromDB(data []byte) error {
 	}
 	var v int64
 	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+		return oops.Wrap(err)
 	}
 	ts.Time = time.UnixMilli(v)
 	ts.Valid = true

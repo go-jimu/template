@@ -3,6 +3,7 @@ package eventbus_test
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"testing"
 
@@ -14,36 +15,76 @@ import (
 
 type testEvent struct{}
 
-func (testEvent) Kind() event.Kind {
-	return "test.event"
+func (testEvent) Kind() event.Kind { return "test.event" }
+
+type testHandler struct {
+	handled chan struct{}
 }
 
-// Eventbus must remain open after fx stops so shutdown paths do not lose late domain events.
-func TestDispatcherStaysOpenAfterFxStop(t *testing.T) {
+func (*testHandler) Listening() []event.Kind { return []event.Kind{"test.event"} }
+
+func (h *testHandler) Handle(context.Context, event.Event) {
+	h.handled <- struct{}{}
+}
+
+func TestDispatcherRejectsEventsAfterFxStop(t *testing.T) {
 	var dispatcher event.Dispatcher
 	app := fxtest.New(
 		t,
 		fx.Supply(
 			eventbus.Config{
 				BufferSize:     1,
+				Workers:        1,
 				DelayClose:     "0s",
-				HandlerTimeout: "0s",
+				HandlerTimeout: "1s",
 			},
-			slog.Default(),
+			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
 		fx.Provide(eventbus.NewDispatcher),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+			lifecycle.Append(fx.StopHook(dispatcher.Close))
+		}),
 		fx.Populate(&dispatcher),
 	)
-
 	app.RequireStart()
-	t.Cleanup(func() {
-		_ = dispatcher.Close(context.Background())
-	})
 	app.RequireStop()
 
-	if err := dispatcher.Dispatch(testEvent{}); errors.Is(err, event.ErrDispatcherClosed) {
+	if err := dispatcher.Dispatch(context.Background(), testEvent{}); !errors.Is(err, event.ErrDispatcherClosed) {
+		t.Fatalf("Dispatch() error = %v, want %v", err, event.ErrDispatcherClosed)
+	}
+}
+
+func TestDispatcherDrainsAcceptedEventsDuringFxStop(t *testing.T) {
+	var dispatcher event.Dispatcher
+	var subscriber event.Subscriber
+	app := fxtest.New(
+		t,
+		fx.Supply(
+			eventbus.Config{
+				BufferSize:     1,
+				Workers:        1,
+				DelayClose:     "0s",
+				HandlerTimeout: "1s",
+			},
+			slog.New(slog.NewTextHandler(io.Discard, nil)),
+		),
+		fx.Provide(eventbus.NewDispatcher),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+			lifecycle.Append(fx.StopHook(dispatcher.Close))
+		}),
+		fx.Populate(&dispatcher, &subscriber),
+	)
+	handler := &testHandler{handled: make(chan struct{}, 1)}
+	subscriber.Subscribe(handler)
+	app.RequireStart()
+	if err := dispatcher.Dispatch(context.Background(), testEvent{}); err != nil {
 		t.Fatal(err)
-	} else if err != nil {
-		t.Fatal(err)
+	}
+	app.RequireStop()
+
+	select {
+	case <-handler.handled:
+	default:
+		t.Fatal("accepted event was not drained during shutdown")
 	}
 }

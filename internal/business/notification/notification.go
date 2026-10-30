@@ -1,0 +1,39 @@
+// Package notification demonstrates an Integration Message consuming bounded context.
+package notification
+
+import (
+	"github.com/go-jimu/components/ddd/message"
+	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
+	"github.com/go-jimu/template/internal/business/notification/application"
+	"github.com/go-jimu/template/internal/business/notification/transport/messagesubscriber"
+	"github.com/samber/oops"
+	"go.uber.org/fx"
+	"google.golang.org/protobuf/proto"
+)
+
+// Module wires the Notification bounded context.
+var Module = fx.Module(
+	"business.notification",
+	fx.Provide(
+		application.NewApplication,
+		messagesubscriber.NewUserRegisteredSubscriber,
+	),
+	fx.Invoke(func(
+		payloads *message.PayloadRegistry,
+		registry message.Subscriber,
+		subscriber *messagesubscriber.UserRegisteredSubscriber,
+	) error {
+		if err := payloads.Register(
+			message.KindOf(&userintegrationv1.UserRegisteredV1{}),
+			func() proto.Message { return &userintegrationv1.UserRegisteredV1{} },
+		); err != nil {
+			return oops.With("operation", "message.payload.register").
+				Wrap(err)
+		}
+		if err := registry.Subscribe(subscriber); err != nil {
+			return oops.With("operation", "message.subscriber.register").
+				Wrap(err)
+		}
+		return nil
+	}),
+)

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"xorm.io/xorm"
 )
 
+// Option contains MySQL connection-pool settings.
 type Option struct {
 	Host         string `json:"host" yaml:"host" toml:"host"`
 	Port         int    `json:"port,string" yaml:"port" toml:"port"`
@@ -24,32 +26,106 @@ type Option struct {
 	MaxLifetime  string `json:"max_lifetime" yaml:"max_lifetime" toml:"max_lifetime"`
 }
 
-func NewMySQLDriver(lc fx.Lifecycle, opt Option, logger *slog.Logger) (*xorm.Engine, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local", opt.User, opt.Password, opt.Host, opt.Port, opt.Database)
+// Validate checks the MySQL component's own configuration.
+func (o Option) Validate() error {
+	if o.Host == "" {
+		return errors.New("mysql host is required")
+	}
+	if o.Port < 1 || o.Port > 65535 {
+		return fmt.Errorf("mysql port %d is outside 1..65535", o.Port)
+	}
+	if o.User == "" {
+		return errors.New("mysql user is required")
+	}
+	if o.Database == "" {
+		return errors.New("mysql database is required")
+	}
+	if o.MaxOpenConns < 0 || o.MaxIdleConns < 0 {
+		return errors.New("mysql connection limits cannot be negative")
+	}
+	if o.MaxOpenConns > 0 && o.MaxIdleConns > o.MaxOpenConns {
+		return errors.New("mysql max_idle_conns cannot exceed max_open_conns")
+	}
+	if _, err := time.ParseDuration(o.MaxIdleTime); err != nil {
+		return oops.With("option", "max_idle_time").
+			With("value", o.MaxIdleTime).
+			Wrap(err)
+	}
+	if _, err := time.ParseDuration(o.MaxLifetime); err != nil {
+		return oops.With("option", "max_lifetime").
+			With("value", o.MaxLifetime).
+			Wrap(err)
+	}
+	return nil
+}
+
+// NewMySQLDriver creates and lifecycle-manages the shared xorm engine.
+func NewMySQLDriver(
+	lifecycle fx.Lifecycle,
+	option Option,
+	logger *slog.Logger,
+) (*xorm.Engine, error) {
+	if err := option.Validate(); err != nil {
+		return nil, err
+	}
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=UTC",
+		option.User,
+		option.Password,
+		option.Host,
+		option.Port,
+		option.Database,
+	)
 	engine, err := xorm.NewEngine("mysql", dsn)
 	if err != nil {
-		return nil, err
+		return nil, oops.With("host", option.Host).
+			With("database", option.Database).
+			Wrap(err)
 	}
 	engine.SetLogger(NewXormSlog(logger))
 	engine.ShowSQL(false)
-	engine.SetMaxIdleConns(opt.MaxIdleConns)
-	engine.SetMaxOpenConns(opt.MaxOpenConns)
-	if duration, err := time.ParseDuration(opt.MaxIdleTime); err == nil {
-		engine.SetConnMaxIdleTime(duration)
-	}
-	if duration, err := time.ParseDuration(opt.MaxLifetime); err == nil {
-		engine.SetConnMaxLifetime(duration)
-	}
+	engine.SetMaxIdleConns(option.MaxIdleConns)
+	engine.SetMaxOpenConns(option.MaxOpenConns)
 
-	lc.Append(fx.Hook{
+	maxIdleTime, err := time.ParseDuration(option.MaxIdleTime)
+	if err != nil {
+		_ = engine.Close()
+		return nil, oops.With("option", "max_idle_time").
+			With("value", option.MaxIdleTime).
+			Wrap(err)
+	}
+	maxLifetime, err := time.ParseDuration(option.MaxLifetime)
+	if err != nil {
+		_ = engine.Close()
+		return nil, oops.With("option", "max_lifetime").
+			With("value", option.MaxLifetime).
+			Wrap(err)
+	}
+	engine.SetConnMaxIdleTime(maxIdleTime)
+	engine.SetConnMaxLifetime(maxLifetime)
+
+	lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			pingContext, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
-			if err := engine.PingContext(ctx); err != nil {
-				return oops.With("dsn", dsn).Wrap(err)
+			if err := engine.PingContext(pingContext); err != nil {
+				_ = engine.Close()
+				return oops.With("host", option.Host).
+					With("port", option.Port).
+					With("database", option.Database).
+					Wrap(err)
 			}
-			logger.InfoContext(ctx, "connected to database", slog.Any("option", opt))
+			logger.InfoContext(
+				ctx,
+				"connected to database",
+				slog.String("host", option.Host),
+				slog.Int("port", option.Port),
+				slog.String("database", option.Database),
+			)
 			return nil
+		},
+		OnStop: func(context.Context) error {
+			return oops.Wrap(engine.Close())
 		},
 	})
 	return engine, nil

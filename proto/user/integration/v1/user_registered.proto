@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package user.integration.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/go-jimu/template/gen/user/integration/v1;userintegrationv1";
+
+// UserRegisteredV1 is the stable published fact emitted by the User context.
+message UserRegisteredV1 {
+  // user_id identifies the registered user.
+  string user_id = 1;
+  // name is the display-name snapshot at registration time.
+  string name = 2;
+  // email is the email snapshot at registration time.
+  string email = 3;
+  // occurred_at is when the User Aggregate recorded the fact.
+  google.protobuf.Timestamp occurred_at = 4;
+}

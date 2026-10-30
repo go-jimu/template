@@ -1,0 +1,29 @@
+logger:
+  level: info
+  output: console
+eventbus:
+  buffer-size: 1024
+  workers: 4
+  delay-close: 1s
+  handler-timeout: 10s
+kafka:
+  brokers:
+    - ${KAFKA_BROKER:localhost:9092}
+  client-id: ${KAFKA_CLIENT_ID:go-jimu-template}
+  consumer-group: ${KAFKA_CONSUMER_GROUP:go-jimu-template}
+  topics:
+    - user.integration.v1.UserRegisteredV1
+  # drop commits a failed message; dlq first publishes it to <topic>.dlq.
+  failure-policy: ${KAFKA_FAILURE_POLICY:drop}
+mysql:
+  host: ${MYSQL_HOST:localhost}
+  port: ${MYSQL_PORT:3306}
+  user: ${MYSQL_USER:root}
+  password: ${MYSQL_PASSWORD:jimu}
+  database: ${MYSQL_DATABASE:jimu}
+  max_open_conns: 12
+  max_idle_conns: 12
+  max_idle_time: ${MYSQL_MAX_IDLE_TIME:5m}
+  max_lifetime: ${MYSQL_MAX_LIFETIME:30m}
+connect:
+  addr: "${CONNECT_ADDR::8080}"

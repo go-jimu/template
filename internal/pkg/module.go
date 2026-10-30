@@ -1,19 +1,20 @@
+// Package pkg assembles shared runtime infrastructure.
 package pkg
 
 import (
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
-	"github.com/go-jimu/template/internal/pkg/grpcsrv"
-	"github.com/go-jimu/template/internal/pkg/httpsrv"
+	"github.com/go-jimu/template/internal/pkg/eventbus"
+	"github.com/go-jimu/template/internal/pkg/messagebus"
 	"go.uber.org/fx"
 )
 
-// Module is the fx module for the internal package.
-// It provides common infrastructure components like HTTP server, database driver, etc.
+// Module provides the shared runtime adapters used by bounded contexts.
+// Lifecycle starts and stops the ones that carry traffic.
 var Module = fx.Module(
 	"internal.pkg",
-	fx.Provide(httpsrv.NewHTTPServer),
+	fx.Provide(connectrpc.NewServer),
 	fx.Provide(database.NewMySQLDriver),
-	fx.Provide(grpcsrv.NewGRPCServ),
-	fx.Provide(connectrpc.NewConnectRPCServer),
+	fx.Provide(eventbus.NewDispatcher),
+	fx.Provide(messagebus.NewKafka),
 )
