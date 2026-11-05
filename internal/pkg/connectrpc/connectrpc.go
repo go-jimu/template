@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/go-chi/chi/v5"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
@@ -52,7 +51,7 @@ type server struct {
 	logger       *slog.Logger
 	shutdowner   fx.Shutdowner
 	interceptors []connect.Interceptor
-	router       *chi.Mux
+	mux          *http.ServeMux
 	httpServer   *http.Server
 	listener     net.Listener
 	ready        atomic.Bool
@@ -85,18 +84,18 @@ func NewServer(
 	if err := option.Validate(); err != nil {
 		return ServeOut{}, err
 	}
-	router := chi.NewRouter()
+	mux := http.NewServeMux()
 	connectServer := &server{
 		option:       option,
 		logger:       logger,
 		shutdowner:   shutdowner,
 		interceptors: []connect.Interceptor{NewCarrier(logger).Intercept()},
-		router:       router,
+		mux:          mux,
 	}
-	router.Get("/healthz", func(response http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusOK)
 	})
-	router.Get("/readyz", func(response http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /readyz", func(response http.ResponseWriter, _ *http.Request) {
 		if !connectServer.ready.Load() {
 			response.WriteHeader(http.StatusServiceUnavailable)
 			return
@@ -105,7 +104,7 @@ func NewServer(
 	})
 	connectServer.httpServer = &http.Server{
 		Addr:              option.Addr,
-		Handler:           h2c.NewHandler(router, &http2.Server{}),
+		Handler:           h2c.NewHandler(mux, &http2.Server{}),
 		ReadHeaderTimeout: 3 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    16 * 1024,
@@ -140,10 +139,11 @@ func (s *server) GetGlobalInterceptors() []connect.Interceptor {
 	return append([]connect.Interceptor(nil), s.interceptors...)
 }
 
-// Register mounts one generated Connect handler without changing its URL path.
+// Register mounts one generated Connect handler on its service path, such as
+// "/user.private.v1.UserService/", which serves every procedure under it.
 func (s *server) Register(pattern string, handler http.Handler) {
-	pattern = strings.TrimSuffix(pattern, "/")
-	s.router.Handle(pattern+"/*", handler)
+	pattern = strings.TrimSuffix(pattern, "/") + "/"
+	s.mux.Handle(pattern, handler)
 	s.logger.Info("ConnectRPC handler registered", slog.String("pattern", pattern))
 }
 
