@@ -19,7 +19,9 @@ import (
 
 const headerRequestID = "X-Request-ID"
 
-// Carrier creates request-scoped loggers and one completion log per RPC.
+// Carrier creates request-scoped loggers and one completion log per RPC: Info
+// for success and for failures the client caused, Warn for transient
+// failures, Error for server faults (see failureLevel).
 type Carrier struct {
 	logger  *slog.Logger
 	counter uint64
@@ -64,8 +66,9 @@ func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
 			}()
 
 			if err != nil {
-				logger.ErrorContext(
+				logger.Log(
 					ctx,
+					failureLevel(connect.CodeOf(err)),
 					"request complete",
 					slog.String("operation", request.Spec().Procedure),
 					slog.String("outcome", "failed"),
@@ -85,6 +88,31 @@ func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
 			)
 			return response, nil
 		}
+	}
+}
+
+// failureLevel is the log level of a failed RPC by what its code means for
+// the service: Info for an outcome the client caused, answered like any
+// request; Warn for a transient failure of the service or a dependency;
+// Error for a server fault, including a recovered panic.
+func failureLevel(code connect.Code) slog.Level {
+	switch code {
+	case connect.CodeCanceled,
+		connect.CodeInvalidArgument,
+		connect.CodeNotFound,
+		connect.CodeAlreadyExists,
+		connect.CodePermissionDenied,
+		connect.CodeUnauthenticated,
+		connect.CodeFailedPrecondition,
+		connect.CodeAborted,
+		connect.CodeOutOfRange:
+		return slog.LevelInfo
+	case connect.CodeDeadlineExceeded,
+		connect.CodeResourceExhausted,
+		connect.CodeUnavailable:
+		return slog.LevelWarn
+	default:
+		return slog.LevelError
 	}
 }
 
