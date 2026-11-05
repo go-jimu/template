@@ -34,11 +34,40 @@ type Option struct {
 	// PublicAddr serves the externally supported contracts for web and app
 	// clients. Expose only this address.
 	PublicAddr string `json:"public-addr" yaml:"public-addr" toml:"public-addr"`
+	// ShutdownDelay is how long both servers keep serving with /readyz
+	// unavailable before they close their listeners, so load balancers stop
+	// routing first, such as "5s". Empty means no delay. It counts against
+	// the process stop timeout.
+	ShutdownDelay string `json:"shutdown-delay" yaml:"shutdown-delay" toml:"shutdown-delay"`
 }
 
 // Validate checks the ConnectRPC component's own configuration: both
-// addresses resolve, and they do not share a port.
+// addresses resolve, they do not share a port, and the shutdown delay is a
+// duration that is not negative.
 func (o Option) Validate() error {
+	_, err := o.shutdownDelay()
+	return err
+}
+
+// shutdownDelay validates o and returns its parsed shutdown delay.
+func (o Option) shutdownDelay() (time.Duration, error) {
+	if err := o.validateAddresses(); err != nil {
+		return 0, err
+	}
+	if o.ShutdownDelay == "" {
+		return 0, nil
+	}
+	delay, err := time.ParseDuration(o.ShutdownDelay)
+	if err != nil {
+		return 0, oops.With("option", "shutdown-delay").With("value", o.ShutdownDelay).Wrap(err)
+	}
+	if delay < 0 {
+		return 0, fmt.Errorf("connectrpc shutdown-delay %q cannot be negative", o.ShutdownDelay)
+	}
+	return delay, nil
+}
+
+func (o Option) validateAddresses() error {
 	private, err := resolve("addr", o.Addr)
 	if err != nil {
 		return err
@@ -101,11 +130,12 @@ type ServeHook struct {
 
 // servers owns the two listeners and the readiness they share.
 type servers struct {
-	logger     *slog.Logger
-	shutdowner fx.Shutdowner
-	ready      atomic.Bool
-	private    *server
-	public     *server
+	logger        *slog.Logger
+	shutdowner    fx.Shutdowner
+	shutdownDelay time.Duration
+	ready         atomic.Bool
+	private       *server
+	public        *server
 }
 
 // server is one listener with its own routes.
@@ -130,11 +160,12 @@ func NewServer(
 	option Option,
 	logger *slog.Logger,
 ) (ServeOut, error) {
-	if err := option.Validate(); err != nil {
+	shutdownDelay, err := option.shutdownDelay()
+	if err != nil {
 		return ServeOut{}, err
 	}
 	interceptors := []connect.Interceptor{NewCarrier(logger).Intercept()}
-	s := &servers{logger: logger, shutdowner: shutdowner}
+	s := &servers{logger: logger, shutdowner: shutdowner, shutdownDelay: shutdownDelay}
 	s.private = s.newServer("private", option.Addr, interceptors)
 	s.public = s.newServer("public", option.PublicAddr, interceptors)
 	return ServeOut{
@@ -203,9 +234,21 @@ func (s *servers) closeListeners() {
 	}
 }
 
-// stop turns /readyz unavailable and drains both listeners concurrently.
+// stop turns /readyz unavailable, keeps serving for the shutdown delay so
+// load balancers stop routing, then closes both listeners and drains their
+// requests concurrently. ctx bounds the whole stop, the delay included.
 func (s *servers) stop(ctx context.Context) error {
 	s.ready.Store(false)
+	if s.shutdownDelay > 0 {
+		s.logger.InfoContext(ctx, "ConnectRPC servers not ready, closing after delay",
+			slog.Int64("shutdown_delay_ms", s.shutdownDelay.Milliseconds()))
+		timer := time.NewTimer(s.shutdownDelay)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+		}
+	}
 	var wg sync.WaitGroup
 	errs := make([]error, 2)
 	for index, srv := range []*server{s.private, s.public} {

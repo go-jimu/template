@@ -35,3 +35,6 @@ connect:
   addr: "${CONNECT_ADDR::8080}"
   # public/v1 contracts for web and app clients; the only port to expose.
   public-addr: "${CONNECT_PUBLIC_ADDR::8081}"
+  # On shutdown both ports report /readyz unavailable and keep serving this
+  # long before closing, so load balancers stop routing first.
+  shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s}

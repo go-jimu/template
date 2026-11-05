@@ -1,6 +1,7 @@
 package connectrpc_test
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -134,5 +135,79 @@ func TestServersShutDown(t *testing.T) {
 		if _, err := client.Get("http://" + address + "/healthz"); err == nil {
 			t.Errorf("%s still serves after shutdown", address)
 		}
+	}
+}
+
+// startDirect starts the servers without Fx, so a test can call the stop
+// hook with its own ctx.
+func startDirect(t *testing.T, delay string) (sharedconnectrpc.ServeOut, func(context.Context) error) {
+	t.Helper()
+	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{
+		Addr: "127.0.0.1:0", PublicAddr: "127.0.0.1:0", ShutdownDelay: delay,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Public.Register("/test.public.v1.Service/", handlerWithStatus(http.StatusAccepted))
+	if err = out.ServeHook.OnStart(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	stopped := false
+	t.Cleanup(func() {
+		if !stopped {
+			_ = out.ServeHook.OnStop(context.Background())
+		}
+	})
+	return out, func(ctx context.Context) error {
+		stopped = true
+		return out.ServeHook.OnStop(ctx)
+	}
+}
+
+// Intent: on stop, both ports report not ready for shutdown-delay while still
+// serving requests, so load balancers stop routing before the listeners
+// close and no client meets a refused connection.
+func TestShutdownDelayKeepsServingWhileNotReady(t *testing.T) {
+	const delay = 400 * time.Millisecond
+	out, stop := startDirect(t, delay.String())
+	privateURL, publicURL := "http://"+out.Private.Address(), "http://"+out.Public.Address()
+
+	started := time.Now()
+	done := make(chan error, 1)
+	go func() { done <- stop(context.Background()) }()
+
+	deadline := time.Now().Add(delay / 2)
+	for status(t, http.MethodGet, publicURL+"/readyz") != http.StatusServiceUnavailable {
+		if time.Now().After(deadline) {
+			t.Fatal("/readyz still ready after stop began")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if got := status(t, http.MethodGet, privateURL+"/readyz"); got != http.StatusServiceUnavailable {
+		t.Errorf("private /readyz = %d during the delay, want 503", got)
+	}
+	if got := status(t, http.MethodPost, publicURL+"/test.public.v1.Service/Call"); got != http.StatusAccepted {
+		t.Errorf("request during the delay = %d, want 202: the listener must still serve", got)
+	}
+
+	if err := <-done; err != nil {
+		t.Fatalf("stop error = %v", err)
+	}
+	if elapsed := time.Since(started); elapsed < delay {
+		t.Errorf("stop returned after %v, before the %v delay", elapsed, delay)
+	}
+}
+
+// Intent: the delay counts against the stop deadline: a stop ctx that ends
+// first cuts the delay short instead of overrunning Fx's StopTimeout.
+func TestShutdownDelayEndsWithStopContext(t *testing.T) {
+	_, stop := startDirect(t, "10s")
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	_ = stop(ctx)
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("stop took %v with a 100ms ctx and a 10s delay", elapsed)
 	}
 }

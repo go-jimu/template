@@ -175,8 +175,11 @@ uses an Integration Message or another explicitly accepted published boundary.
   only port to expose. Register a handler on `PrivateServer` or `PublicServer`
   by its contract; `Option.Validate` rejects one shared port.
 - Shutdown runs: servers, consumer, dispatcher drain, then clients. `/readyz`
-  on both ports turns unavailable as soon as shutdown begins; `/healthz`
-  reports liveness.
+  on both ports turns unavailable as soon as shutdown begins, and the servers
+  keep serving for `connect.shutdown-delay` before closing so load balancers
+  stop routing first; `/healthz` reports liveness. Everything fits within
+  `fx.StopTimeout` (30s); keep the orchestrator's kill grace period above it
+  (see "Runtime composition and lifecycle" in `docs/ddd/design.md`).
 
 ## Events and messages
 

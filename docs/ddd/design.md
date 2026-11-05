@@ -158,12 +158,21 @@ after every bounded-context module and registers the dispatcher drain, the
 Kafka consumer, and the ConnectRPC servers, in that order. Fx stops hooks in
 reverse, so shutdown runs:
 
-1. both servers turn `/readyz` unavailable and drain in-flight requests;
+1. both servers turn `/readyz` unavailable, keep serving for
+   `connect.shutdown-delay` so load balancers stop routing to them, then close
+   their listeners and drain in-flight requests;
 2. the consumer stops fetching and finishes its current message;
 3. the dispatcher handles every accepted Domain Event; and
 4. the Kafka client and the database close.
 
-Each step can still use everything stopped after it.
+Each step can still use everything stopped after it. The whole sequence runs
+within `fx.StopTimeout` (30s in `cmd/server`): the shutdown delay (5s), the
+request drain, the consumer's running handler (`kafka.handler-timeout`, 5s),
+and the dispatcher (`eventbus.delay-close` plus `eventbus.handler-timeout`,
+11s) fit inside it. The orchestrator must wait longer than the stop timeout
+before it kills the process, such as Kubernetes
+`terminationGracePeriodSeconds: 40`; a longer delay or handler timeout
+raises both.
 
 ## Verification seams
 

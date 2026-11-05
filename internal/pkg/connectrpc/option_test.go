@@ -21,6 +21,9 @@ func TestOptionValidate(t *testing.T) {
 		// ones are reachable.
 		{name: "same address", option: connectrpc.Option{Addr: ":8080", PublicAddr: ":8080"}, wantErr: true},
 		{name: "same port, wildcard", option: connectrpc.Option{Addr: ":8080", PublicAddr: "127.0.0.1:8080"}, wantErr: true},
+		{name: "shutdown delay", option: connectrpc.Option{Addr: ":8080", PublicAddr: ":8081", ShutdownDelay: "5s"}},
+		{name: "shutdown delay invalid", option: connectrpc.Option{Addr: ":8080", PublicAddr: ":8081", ShutdownDelay: "soon"}, wantErr: true},
+		{name: "shutdown delay negative", option: connectrpc.Option{Addr: ":8080", PublicAddr: ":8081", ShutdownDelay: "-1s"}, wantErr: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

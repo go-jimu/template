@@ -214,7 +214,14 @@ kafka:
 connect:
   addr: ${CONNECT_ADDR::8080}                # private/v1, inside the deployment
   public-addr: ${CONNECT_PUBLIC_ADDR::8081}  # public/v1, the only port to expose
+  shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s} # keep serving after /readyz turns 503
 ~~~
+
+On SIGTERM the process shuts down gracefully within 30s: `/readyz` turns 503
+and both ports keep serving for `shutdown-delay`, then requests drain, the
+Kafka consumer finishes its current message, and Domain Events drain before
+the clients close. Give the orchestrator a longer kill grace period, such as
+Kubernetes `terminationGracePeriodSeconds: 40`.
 
 Each runtime component validates its own Option/Config in its constructor.
 `main` only loads and supplies aggregate configuration. Never log a password,
