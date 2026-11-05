@@ -52,10 +52,10 @@ github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9
 github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
 github.com/go-chi/chi/v5 v5.2.4 h1:WtFKPHwlywe8Srng8j2BhOD9312j9cGUxG1SP4V2cR4=
 github.com/go-chi/chi/v5 v5.2.4/go.mod h1:X7Gx4mteadT3eDOMTsXzmI4/rwUpOwBHLpAfupzFJP0=
-github.com/go-jimu/components v0.11.2 h1:QUKBe36999mCFZG9HBOo6/ZfxtpXSquT9WW3qr5uEHM=
-github.com/go-jimu/components v0.11.2/go.mod h1:jC3XNWmkMl50pAiyPP5BqHyv6SY3Q7wVgzKvbVx1xc4=
-github.com/go-jimu/contrib/message/kafka v0.4.0 h1:KWPPpJk0dGnJSFE9Tn6b68rSImHVNauco0yNzHO1Wgs=
-github.com/go-jimu/contrib/message/kafka v0.4.0/go.mod h1:QiSWtg4cSTc1QlTwTDSKLBwwTl4uZaPG+Mb0qcDTWOo=
+github.com/go-jimu/components v0.12.0 h1:yISYRXDNluw4t0y7jRfBfhxvloR4ezf+DlTHrxcD+S0=
+github.com/go-jimu/components v0.12.0/go.mod h1:jC3XNWmkMl50pAiyPP5BqHyv6SY3Q7wVgzKvbVx1xc4=
+github.com/go-jimu/contrib/message/kafka v0.5.0 h1:+pfUDz2rlZfUnEBIIsc/zeLcSqfOe/jwkcoEB/M9zIE=
+github.com/go-jimu/contrib/message/kafka v0.5.0/go.mod h1:hxXBnH7UVEkemeCT/GzMRtxTkN5Vtc/SjDgLI3YQ6CA=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
@@ -175,8 +175,6 @@ github.com/syndtr/goleveldb v1.0.0 h1:fBdIW9lB4Iz0n9khmH8w27SJ3QEJ7+IgjPEwGSZiFd
 github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpPAyBWyWuQ=
 github.com/testcontainers/testcontainers-go v0.42.0 h1:He3IhTzTZOygSXLJPMX7n44XtK+qhjat1nI9cneBbUY=
 github.com/testcontainers/testcontainers-go v0.42.0/go.mod h1:vZjdY1YmUA1qEForxOIOazfsrdyORJAbhi0bp8plN30=
-github.com/testcontainers/testcontainers-go/modules/kafka v0.42.0 h1:b3plW+MUoF6ZaVOAlLjNQMJsigPLsJFIOqHdzMFv/w4=
-github.com/testcontainers/testcontainers-go/modules/kafka v0.42.0/go.mod h1:U0K+PapjOOVJrQCpvRYe6gKk0Oqh+ffl+J80Ln4EKzg=
 github.com/testcontainers/testcontainers-go/modules/mysql v0.42.0 h1:Yhv1k7vDpyzZePntg5R5Oj4ZMCyWpAfpJeRu1ROsgiU=
 github.com/testcontainers/testcontainers-go/modules/mysql v0.42.0/go.mod h1:Z7SCTuiZlghAdRjkv3Ir0iXJKC2T2avbtxLR0DRe+ng=
 github.com/tklauser/go-sysconf v0.3.16 h1:frioLaCQSsF5Cy1jgRBrzr6t502KIIwQ0MArYICU0nA=

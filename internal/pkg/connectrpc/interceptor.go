@@ -70,7 +70,7 @@ func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
 					slog.String("operation", request.Spec().Procedure),
 					slog.String("outcome", "failed"),
 					slog.String("connect_code", connect.CodeOf(err).String()),
-					slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+					slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 					sloghelper.Error(loggedErr),
 				)
 				return response, err
@@ -81,7 +81,7 @@ func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
 				slog.String("operation", request.Spec().Procedure),
 				slog.String("outcome", "success"),
 				slog.String("connect_code", "ok"),
-				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+				slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 			)
 			return response, nil
 		}

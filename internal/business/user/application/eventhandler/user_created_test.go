@@ -32,7 +32,7 @@ func TestUserCreatedHandlerPublishesStableIntegrationMessage(t *testing.T) {
 	var logs bytes.Buffer
 	ctx := sloghelper.NewContext(
 		context.Background(),
-		slog.New(slog.NewJSONHandler(&logs, nil)),
+		slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
 	)
 	occurredAt := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
 
@@ -61,9 +61,10 @@ func TestUserCreatedHandlerPublishesStableIntegrationMessage(t *testing.T) {
 	}
 	for _, field := range []string{
 		`"operation":"user.event.user_created"`,
+		`"level":"DEBUG"`,
 		`"outcome":"success"`,
 		`"event_kind":"user.created"`,
-		`"duration_ms":`,
+		`"elapsed_ms":`,
 	} {
 		if !strings.Contains(logs.String(), field) {
 			t.Fatalf("completion log %q does not contain %s", logs.String(), field)
@@ -89,8 +90,9 @@ func TestUserCreatedHandlerLogsPublishFailure(t *testing.T) {
 
 	for _, field := range []string{
 		`"operation":"user.event.user_created"`,
+		`"level":"ERROR"`,
 		`"outcome":"failed"`,
-		`"duration_ms":`,
+		`"elapsed_ms":`,
 		`"user_id":"user-1"`,
 		`"error":`,
 	} {

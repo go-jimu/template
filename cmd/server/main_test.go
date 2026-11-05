@@ -53,8 +53,11 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 	if option.EventBus.BufferSize != 1024 || option.EventBus.Workers != 4 {
 		t.Fatalf("EventBus = %+v, want buffer-size 1024 and 4 workers", option.EventBus)
 	}
-	if option.Kafka.FailurePolicy != "drop" {
-		t.Fatalf("Kafka.FailurePolicy = %q, want drop", option.Kafka.FailurePolicy)
+	if option.Kafka.FailurePolicy != "retry" {
+		t.Fatalf("Kafka.FailurePolicy = %q, want retry", option.Kafka.FailurePolicy)
+	}
+	if err := option.Kafka.Validate(); err != nil {
+		t.Fatalf("default Kafka option is invalid: %v", err)
 	}
 	if len(option.Kafka.Brokers) != 1 ||
 		option.Kafka.Brokers[0] != "localhost:9092" {

@@ -79,17 +79,9 @@ func NewDispatcher(
 		event.WithWorkers(config.Workers),
 		event.WithDelayClose(delayClose),
 		event.WithHandlerTimeout(handlerTimeout),
-		event.WithContextFactory(func(ctx context.Context, domainEvent event.Event) context.Context {
-			return sloghelper.NewContext(
-				ctx,
-				eventLogger.With(slog.String("event_kind", string(domainEvent.Kind()))),
-			)
-		}),
-		event.WithUnhandledEventHandler(func(unhandled event.UnhandledContext) {
-			eventLogger.Warn(
-				"domain event has no handler",
-				slog.String("event_kind", string(unhandled.Event.Kind())),
-			)
+		// Handlers log through this logger and name the event themselves.
+		event.WithContextFactory(func(ctx context.Context, _ event.Event) context.Context {
+			return sloghelper.NewContext(ctx, eventLogger)
 		}),
 	)
 	return dispatcher, dispatcher, nil

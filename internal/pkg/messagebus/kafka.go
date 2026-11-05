@@ -25,46 +25,77 @@ type Option struct {
 	ClientID      string   `json:"client-id" toml:"client-id" yaml:"client-id"`
 	ConsumerGroup string   `json:"consumer-group" toml:"consumer-group" yaml:"consumer-group"`
 	Topics        []string `json:"topics" toml:"topics" yaml:"topics"`
-	// FailurePolicy is drop or dlq. drop commits a failed message and moves
-	// on; dlq publishes it to <source-topic>.dlq first.
+	// FailurePolicy is retry or drop. retry handles a failed message again in
+	// place, after a backoff and before the rest of its partition, and drops
+	// it after 3 attempts; drop commits it and moves on at once.
 	FailurePolicy string `json:"failure-policy" toml:"failure-policy" yaml:"failure-policy"`
+	// HandlerTimeout bounds one handling of one message, such as "5s".
+	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
+	// MaxPollRecords caps the records of one batch. A batch must finish
+	// within the rebalance timeout, so MaxPollRecords × HandlerTimeout stays
+	// below it.
+	MaxPollRecords int `json:"max-poll-records" toml:"max-poll-records" yaml:"max-poll-records"`
 }
 
 const (
-	failurePolicyDrop = "drop"
-	failurePolicyDLQ  = "dlq"
+	failurePolicyRetry = "retry"
+	failurePolicyDrop  = "drop"
+
+	// rebalanceTimeout is set on the client: the consumer holds a rebalance
+	// until its batch ends.
+	rebalanceTimeout = 60 * time.Second
 )
 
 // Validate checks Kafka configuration before opening the client.
 func (o Option) Validate() error {
+	_, err := o.handlerTimeout()
+	return err
+}
+
+// handlerTimeout validates o and returns the parsed handler timeout.
+func (o Option) handlerTimeout() (time.Duration, error) {
 	if len(o.Brokers) == 0 {
-		return errors.New("kafka brokers are required")
+		return 0, errors.New("kafka brokers are required")
 	}
 	for _, broker := range o.Brokers {
 		if strings.TrimSpace(broker) == "" {
-			return errors.New("kafka broker cannot be empty")
+			return 0, errors.New("kafka broker cannot be empty")
 		}
 	}
 	if strings.TrimSpace(o.ClientID) == "" {
-		return errors.New("kafka client-id is required")
+		return 0, errors.New("kafka client-id is required")
 	}
 	if strings.TrimSpace(o.ConsumerGroup) == "" {
-		return errors.New("kafka consumer-group is required")
+		return 0, errors.New("kafka consumer-group is required")
 	}
 	if len(o.Topics) == 0 {
-		return errors.New("kafka topics are required")
+		return 0, errors.New("kafka topics are required")
 	}
 	for _, topic := range o.Topics {
 		if strings.TrimSpace(topic) == "" {
-			return errors.New("kafka topic cannot be empty")
+			return 0, errors.New("kafka topic cannot be empty")
 		}
 	}
 	switch o.FailurePolicy {
-	case failurePolicyDrop, failurePolicyDLQ:
+	case failurePolicyRetry, failurePolicyDrop:
 	default:
-		return fmt.Errorf("kafka failure-policy %q must be drop or dlq", o.FailurePolicy)
+		return 0, fmt.Errorf("kafka failure-policy %q must be retry or drop", o.FailurePolicy)
 	}
-	return nil
+	timeout, err := time.ParseDuration(o.HandlerTimeout)
+	if err != nil {
+		return 0, oops.With("option", "handler-timeout").With("value", o.HandlerTimeout).Wrap(err)
+	}
+	if timeout <= 0 {
+		return 0, fmt.Errorf("kafka handler-timeout %q must be positive", o.HandlerTimeout)
+	}
+	if o.MaxPollRecords <= 0 {
+		return 0, errors.New("kafka max-poll-records must be positive")
+	}
+	if time.Duration(o.MaxPollRecords)*timeout >= rebalanceTimeout {
+		return 0, fmt.Errorf("kafka max-poll-records %d × handler-timeout %s must stay below the %s rebalance timeout",
+			o.MaxPollRecords, timeout, rebalanceTimeout)
+	}
+	return timeout, nil
 }
 
 // KafkaOut exposes provider-neutral message ports, the payload registry, and
@@ -84,12 +115,11 @@ type ConsumeHook struct {
 }
 
 type consumerRuntime struct {
-	consumer      *jimukafka.Consumer
-	logger        *slog.Logger
-	shutdowner    fx.Shutdowner
-	consumerGroup string
-	cancel        context.CancelFunc
-	done          chan struct{}
+	consumer   *jimukafka.Consumer
+	logger     *slog.Logger
+	shutdowner fx.Shutdowner
+	cancel     context.CancelFunc
+	done       chan struct{}
 }
 
 // NewKafka creates the go-jimu Kafka publisher and consumer. It registers the
@@ -100,31 +130,34 @@ func NewKafka(
 	option Option,
 	logger *slog.Logger,
 ) (KafkaOut, error) {
-	if err := option.Validate(); err != nil {
+	handlerTimeout, err := option.handlerTimeout()
+	if err != nil {
 		return KafkaOut{}, err
 	}
 
+	kafkaLogger := logger.With(slog.String("component", "messagebus.kafka"))
 	client, err := jimukafka.NewClient(
 		kgo.SeedBrokers(option.Brokers...),
 		kgo.ClientID(option.ClientID),
 		kgo.ConsumerGroup(option.ConsumerGroup),
 		kgo.ConsumeTopics(option.Topics...),
 		kgo.DisableAutoCommit(),
+		kgo.BlockRebalanceOnPoll(),
+		kgo.RebalanceTimeout(rebalanceTimeout),
+		kgo.WithLogger(jimukafka.KgoLogger(kafkaLogger, kgo.LogLevelInfo)),
 	)
 	if err != nil {
 		return KafkaOut{}, oops.With("operation", "kafka.client.create").Wrap(err)
 	}
 
-	kafkaLogger := logger.With(slog.String("component", "messagebus.kafka"))
 	registry := message.NewPayloadRegistry()
-	policy, policyOptions := failurePolicy(option.FailurePolicy)
 	consumer, err := jimukafka.NewConsumer(
 		client,
-		policy,
-		append(policyOptions,
-			jimukafka.WithPayloadResolver(registry),
-			jimukafka.WithErrorObserver(observeError(kafkaLogger)),
-		)...,
+		failurePolicy(option.FailurePolicy),
+		jimukafka.WithPayloadResolver(registry),
+		jimukafka.WithHandlerTimeout(handlerTimeout),
+		jimukafka.WithMaxPollRecords(option.MaxPollRecords),
+		jimukafka.WithLogger(kafkaLogger),
 	)
 	if err != nil {
 		client.Close()
@@ -145,76 +178,36 @@ func NewKafka(
 	})
 
 	runtime := &consumerRuntime{
-		consumer:      consumer,
-		logger:        kafkaLogger,
-		shutdowner:    shutdowner,
-		consumerGroup: option.ConsumerGroup,
+		consumer:   consumer,
+		logger:     kafkaLogger,
+		shutdowner: shutdowner,
 	}
 	return KafkaOut{
 		Publisher:       jimukafka.NewPublisher(client),
-		Subscriber:      completionLogging{subscriber: consumer},
+		Subscriber:      loggingSubscriber{subscriber: consumer, logger: kafkaLogger},
 		PayloadRegistry: registry,
 		ConsumeHook:     ConsumeHook{fx.Hook{OnStart: runtime.start, OnStop: runtime.stop}},
 	}, nil
 }
 
-func failurePolicy(name string) (jimukafka.FailurePolicy, []jimukafka.Option) {
-	if name == failurePolicyDLQ {
-		return jimukafka.DLQPolicy(), []jimukafka.Option{jimukafka.WithDefaultFailureTopics()}
+func failurePolicy(name string) jimukafka.FailurePolicy {
+	if name == failurePolicyRetry {
+		return jimukafka.RetryPolicy(jimukafka.RetryConfig{})
 	}
-	return jimukafka.DropAndCommitPolicy(), nil
+	return jimukafka.DropAndCommitPolicy()
 }
 
-func observeError(logger *slog.Logger) jimukafka.ErrorObserver {
-	return func(ctx context.Context, failure jimukafka.Error) {
-		observedErr := failure.Err
-		if _, ok := oops.AsOops(observedErr); !ok {
-			observedErr = oops.Wrap(observedErr)
-		}
-		attributes := []slog.Attr{
-			slog.String("stage", string(failure.Stage)),
-			sloghelper.Error(observedErr),
-		}
-		if failure.Record != nil {
-			attributes = append(
-				attributes,
-				slog.String("topic", failure.Record.Topic),
-				slog.Int("partition", int(failure.Record.Partition)),
-				slog.Int64("offset", failure.Record.Offset),
-			)
-		}
-		logger.LogAttrs(ctx, slog.LevelError, "kafka message processing failed", attributes...)
-	}
-}
-
-// completionLogging wraps every subscribed handler so the runtime, not each
-// handler, logs one line per handled message. Failures are logged by the
-// consumer's error observer with their stage.
-type completionLogging struct {
+// loggingSubscriber wraps every subscribed handler in message.Logging, so the
+// runtime, not each handler, records each handled message at Debug. The
+// consumer logs a failure at the level its failure policy implies: Warn for
+// a retry, Error for a dropped message.
+type loggingSubscriber struct {
 	subscriber message.Subscriber
+	logger     *slog.Logger
 }
 
-func (s completionLogging) Subscribe(handler message.Handler) error {
-	return s.subscriber.Subscribe(loggedHandler{Handler: handler})
-}
-
-type loggedHandler struct {
-	message.Handler
-}
-
-func (h loggedHandler) Handle(ctx context.Context, integrationMessage message.Message) error {
-	startedAt := time.Now()
-	if err := h.Handler.Handle(ctx, integrationMessage); err != nil {
-		return err
-	}
-	sloghelper.FromContext(ctx).InfoContext(
-		ctx,
-		"integration message handled",
-		slog.String("message_id", integrationMessage.ID()),
-		slog.String("message_kind", string(integrationMessage.Kind())),
-		slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
-	)
-	return nil
+func (s loggingSubscriber) Subscribe(handler message.Handler) error {
+	return s.subscriber.Subscribe(message.Chain(handler, message.Logging(s.logger)))
 }
 
 func (r *consumerRuntime) start(context.Context) error {
@@ -225,22 +218,15 @@ func (r *consumerRuntime) start(context.Context) error {
 	r.done = make(chan struct{})
 	go func() {
 		defer close(r.done)
-		err := r.consumer.Run(runCtx)
-		if err == nil {
+		// The consumer logs its start, its stop, and the error that stopped it.
+		if err := r.consumer.Run(runCtx); err == nil {
 			return
 		}
-		r.logger.ErrorContext(
-			runCtx,
-			"kafka consumer stopped unexpectedly",
-			sloghelper.Error(oops.With("operation", "kafka.consumer.run").
-				With("consumer_group", r.consumerGroup).
-				Wrap(err)),
-		)
+		r.logger.ErrorContext(runCtx, "shutting down: kafka consumer cannot continue")
 		if shutdownErr := r.shutdowner.Shutdown(fx.ExitCode(1)); shutdownErr != nil {
 			r.logger.Error("failed to request process shutdown", sloghelper.Error(oops.Wrap(shutdownErr)))
 		}
 	}()
-	r.logger.Info("kafka consumer started", slog.String("consumer_group", r.consumerGroup))
 	return nil
 }
 
@@ -251,9 +237,8 @@ func (r *consumerRuntime) stop(ctx context.Context) error {
 	r.cancel()
 	select {
 	case <-r.done:
+		return nil
 	case <-ctx.Done():
 		return oops.With("operation", "kafka.consumer.stop").Wrap(ctx.Err())
 	}
-	r.logger.Info("kafka consumer stopped")
-	return nil
 }

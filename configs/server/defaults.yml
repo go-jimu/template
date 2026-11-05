@@ -13,8 +13,13 @@ kafka:
   consumer-group: ${KAFKA_CONSUMER_GROUP:go-jimu-template}
   topics:
     - user.integration.v1.UserRegisteredV1
-  # drop commits a failed message; dlq first publishes it to <topic>.dlq.
-  failure-policy: ${KAFKA_FAILURE_POLICY:drop}
+  # retry handles a failed message again in place, after a backoff, and drops
+  # it after 3 attempts; drop commits it and moves on at once.
+  failure-policy: ${KAFKA_FAILURE_POLICY:retry}
+  # A batch must end within the 60s rebalance timeout:
+  # max-poll-records × handler-timeout stays below it.
+  handler-timeout: ${KAFKA_HANDLER_TIMEOUT:5s}
+  max-poll-records: 10
 mysql:
   host: ${MYSQL_HOST:localhost}
   port: ${MYSQL_PORT:3306}

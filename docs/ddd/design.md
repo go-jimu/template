@@ -93,11 +93,12 @@ happen after that persistence boundary.
 
 Event dispatch is best effort in the template: a dispatch failure is recorded
 where it is deliberately suppressed, and registration still succeeds. The
-Kafka consumer's `failure-policy` is `drop` by default, which commits a failed
-message, or `dlq`, which first publishes it to `<topic>.dlq`.
+Kafka consumer's `failure-policy` is `retry` by default, which handles a failed
+message again in place, after a backoff and before the rest of its partition,
+and drops it after 3 attempts; or `drop`, which commits it at once.
 
-The template deliberately excludes outbox, retry, durable notification state,
-and idempotency storage. A production service must make an explicit
+The template deliberately excludes outbox, a dead-letter store, durable
+notification state, and idempotency storage. A production service must make an explicit
 failure-tolerance decision before adding any of those mechanisms.
 
 ## Error propagation and logging
@@ -113,14 +114,16 @@ print the same error repeatedly. The outer execution boundary prints it once
 with `sloghelper.Error(err)`:
 
 - the ConnectRPC interceptor owns RPC failures;
-- the Kafka error observer owns consumed-message failures;
+- the go-jimu Kafka consumer owns consumed-message failures, logging a retry at
+  Warn and a dropped message at Error;
 - a Domain Event Handler owns its terminal failure because its handler contract
   has no error return; and
 - code that intentionally suppresses an error logs it at the suppression point.
 
 Completion records belong to the runtime, not to Application: the ConnectRPC
 interceptor records each request, and the message runtime wraps every
-subscribed handler to record each handled message.
+subscribed handler in `message.Logging` to record each handled message at
+Debug.
 
 ## Runtime composition and lifecycle
 

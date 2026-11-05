@@ -49,7 +49,7 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, domainEvent event.Event
 			slog.String("operation", "user.event.user_created"),
 			slog.String("outcome", "failed"),
 			slog.String("event_kind", string(domainEvent.Kind())),
-			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 			sloghelper.Error(err),
 		)
 		return
@@ -85,12 +85,12 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, domainEvent event.Event
 			slog.String("event_kind", string(created.Kind())),
 			slog.String("message_kind", string(message.KindOf(payload))),
 			slog.String("user_id", created.UserID),
-			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 			sloghelper.Error(err),
 		)
 		return
 	}
-	logger.InfoContext(
+	logger.DebugContext(
 		ctx,
 		"integration message published",
 		slog.String("operation", "user.event.user_created"),
@@ -99,6 +99,6 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, domainEvent event.Event
 		slog.String("user_id", created.UserID),
 		slog.String("message_id", integrationMessage.ID()),
 		slog.String("message_kind", string(integrationMessage.Kind())),
-		slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+		slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 	)
 }

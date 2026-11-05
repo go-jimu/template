@@ -6,8 +6,8 @@ require (
 	connectrpc.com/connect v1.20.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-chi/chi/v5 v5.2.4
-	github.com/go-jimu/components v0.11.2
-	github.com/go-jimu/contrib/message/kafka v0.4.0
+	github.com/go-jimu/components v0.12.0
+	github.com/go-jimu/contrib/message/kafka v0.5.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0

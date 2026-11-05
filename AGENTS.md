@@ -119,7 +119,8 @@ uses an Integration Message or another explicitly accepted published boundary.
 - Application returns errors without logging them or adding context the inner
   layer already attached. It logs only an error it suppresses.
 - Completion logs belong to the runtime: the ConnectRPC interceptor logs each
-  request and the message runtime logs each handled message.
+  request and the message runtime logs each handled message, at Debug, through
+  `message.Logging`.
 
 ### Transport
 
@@ -132,7 +133,8 @@ uses an Integration Message or another explicitly accepted published boundary.
   an Application method. Connect handlers send writes to the Application and
   reads to the query object.
 - Message Subscriber failures are returned without an inner error log; the
-  Kafka observer is the outer boundary.
+  Kafka consumer is the outer boundary and logs each failure at the level its
+  failure policy implies.
 - Transport does not call Repositories, mutate Aggregates, control
   transactions, dispatch Domain Events, or own broker/server lifecycle.
 - Use the package name `messagesubscriber` for inbound message consumers. Do
@@ -181,10 +183,13 @@ uses an Integration Message or another explicitly accepted published boundary.
 Never publish a Domain Event struct directly as an Integration Message.
 `UserCreated` and `UserRegisteredV1` are intentionally different types.
 
-The Kafka `failure-policy` option chooses `drop` (commit and move on) or `dlq`
-(publish to `<topic>.dlq` first). The template intentionally omits task
-processors, outbox, retry, durable notification state, and idempotency storage.
-Add those only after an explicit production reliability decision.
+The Kafka `failure-policy` option chooses `retry` (handle a failed message
+again in place, after a backoff, and drop it after 3 attempts) or `drop`
+(commit and move on). `max-poll-records` × `handler-timeout` stays below the
+60s rebalance timeout; `messagebus.Option.Validate` enforces it. The template
+intentionally omits task processors, outbox, a dead-letter store, durable
+notification state, and idempotency storage. Add those only after an explicit
+production reliability decision.
 
 ## Errors and logging
 
@@ -197,9 +202,15 @@ Add those only after an explicit production reliability decision.
 - Never attach passwords, tokens, full DSNs, or raw secrets.
 - Print an error exactly once at the outermost execution boundary and always
   pass it through `sloghelper.Error(err)`.
-- ConnectRPC middleware owns RPC error logs; the Kafka observer owns consumed
-  message errors; Domain Event Handlers log terminal errors because their
-  handler contract cannot return one.
+- ConnectRPC middleware owns RPC error logs; the go-jimu Kafka consumer owns
+  consumed-message failures (Warn for a retry, Error for a dropped message);
+  Domain Event Handlers log terminal errors because their handler contract
+  cannot return one.
+- Attribute names, `elapsed_ms`, and levels follow the logging conventions in
+  `go doc github.com/go-jimu/components/sloghelper`: success at Debug,
+  lifecycle at Info, a failure that heals by itself at Warn, lost work at
+  Error. Every runtime component gets the process logger, as the Kafka client
+  does through `KgoLogger`.
 - Do not put normal completion logging in `defer`. A small recovery `defer` is
   acceptable when the log happens afterward.
 

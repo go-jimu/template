@@ -39,6 +39,7 @@ func TestCarrierLogsReturnedErrorOnceAtTheOuterBoundary(t *testing.T) {
 	for _, field := range []string{
 		`"level":"ERROR"`,
 		`"outcome":"failed"`,
+		`"elapsed_ms":`,
 		`"error":`,
 	} {
 		if !strings.Contains(output, field) {

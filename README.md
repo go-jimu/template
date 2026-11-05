@@ -134,8 +134,9 @@ UserCreated (User Domain Event)
 ~~~
 
 `UserCreated` and `UserRegisteredV1` are intentionally different. The Kafka
-`failure-policy` is `drop` or `dlq`; the example does not implement outbox,
-idempotency, retry, or durable notification state.
+`failure-policy` is `retry` (in place, after a backoff, dropped after 3
+attempts) or `drop`; the example does not implement outbox, idempotency, a
+dead-letter store, or durable notification state.
 
 ## Getting started
 
@@ -189,7 +190,9 @@ mysql:
 kafka:
   brokers:
     - ${KAFKA_BROKER:localhost:9092}
-  failure-policy: ${KAFKA_FAILURE_POLICY:drop}   # or dlq
+  failure-policy: ${KAFKA_FAILURE_POLICY:retry}  # or drop
+  handler-timeout: ${KAFKA_HANDLER_TIMEOUT:5s}
+  max-poll-records: 10                           # × handler-timeout < 60s
 connect:
   addr: ${CONNECT_ADDR::8080}
 ~~~
@@ -208,10 +211,12 @@ token, or full DSN.
   `sloghelper.Error(err)`.
 
 Completion records come from the runtime: the ConnectRPC interceptor logs each
-request and the message runtime logs each handled message. Message Subscribers
-return failures to the Kafka observer. Domain Event
-Handlers log terminal failures because their handler contract has no error
-return.
+request and the message runtime logs each handled message at Debug through
+`message.Logging`. Message Subscribers return failures to the go-jimu Kafka
+consumer, which logs a retry at Warn and a dropped message at Error. Domain
+Event Handlers log terminal failures because their handler contract has no
+error return. Attribute names and levels follow the conventions in
+`go doc github.com/go-jimu/components/sloghelper`.
 
 ## Protocol generation
 
