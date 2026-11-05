@@ -161,8 +161,8 @@ func forbiddenBusinessImport(module, contextName, layer, imported string) string
 
 	localPrefix := module + "/"
 	if layer == "application" || layer == "infrastructure" {
-		if isPrivateRPCContract(module, imported) {
-			return "only Transport may import the private RPC contract"
+		if isRPCContract(module, imported) {
+			return "only Transport may import a private or public RPC contract"
 		}
 	}
 	switch layer {
@@ -218,15 +218,15 @@ func forbiddenBusinessImport(module, contextName, layer, imported string) string
 	return ""
 }
 
-// isPrivateRPCContract reports imports of generated gen/<context>/private
-// packages, the request contract that Transport adapts.
-func isPrivateRPCContract(module, imported string) bool {
+// isRPCContract reports imports of generated gen/<context>/private or
+// gen/<context>/public packages, the RPC contracts that Transport adapts.
+func isRPCContract(module, imported string) bool {
 	relativeImport, ok := strings.CutPrefix(imported, module+"/gen/")
 	if !ok {
 		return false
 	}
 	parts := strings.Split(relativeImport, "/")
-	return len(parts) > 1 && parts[1] == "private"
+	return len(parts) > 1 && (parts[1] == "private" || parts[1] == "public")
 }
 
 func hasAnyPrefix(value string, prefixes ...string) bool {
@@ -251,6 +251,9 @@ func TestForbiddenBusinessImportRules(t *testing.T) {
 		{"infrastructure", module + "/internal/business/user/application/query", false},
 		{"infrastructure", "connectrpc.com/connect", true},
 		{"transport", module + "/gen/user/private/v1", false},
+		{"application", module + "/gen/user/public/v1", true},
+		{"infrastructure", module + "/gen/user/public/v1/userpublicv1connect", true},
+		{"transport", module + "/gen/user/public/v1", false},
 	} {
 		reason := forbiddenBusinessImport(module, "user", test.layer, test.imported)
 		if (reason != "") != test.forbidden {

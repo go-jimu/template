@@ -11,7 +11,8 @@ import (
 // after every bounded-context module, so the resources it uses are already
 // registered. Fx stops hooks in reverse, so shutdown runs:
 //
-//  1. the ConnectRPC server stops taking requests and drains them;
+//  1. the ConnectRPC servers, private and public, stop taking requests and
+//     drain them;
 //  2. the Kafka consumer stops fetching and finishes its current message;
 //  3. the Domain Event dispatcher handles every accepted event;
 //  4. the Kafka client and the database close (their constructors' hooks).

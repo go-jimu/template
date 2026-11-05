@@ -53,7 +53,8 @@ internal/business/<context>/
   infrastructure/                  xorm, DO conversion, ACLs, outbound adapters
   <context>.go                     bounded-context Fx module
 internal/pkg/                      shared technical runtime; lifecycle.go orders shutdown
-proto/<context>/private/v1/        ConnectRPC request contracts
+proto/<context>/private/v1/        deployment-private ConnectRPC contracts
+proto/<context>/public/v1/         externally supported ConnectRPC contracts for web and app clients
 proto/<context>/integration/v1/    published Integration Message contracts
 gen/                               generated code; never edit manually
 migrations/                        ordered MySQL migrations
@@ -110,7 +111,8 @@ uses an Integration Message or another explicitly accepted published boundary.
 - A context receiving another context's published language translates it into
   its own Command (Notification's `Recipient`, not User's fields).
 - Commands and Queries are protocol independent; Application never imports the
-  private RPC contract under `gen/<context>/private`.
+  private or public RPC contract under `gen/<context>/private` or
+  `gen/<context>/public`.
 - Application does not import Infrastructure, Transport, database sessions,
   Kafka clients, or `internal/pkg` runtime packages.
 - Domain Event Handlers consume same-context Domain Events. A selected event may
@@ -160,16 +162,21 @@ uses an Integration Message or another explicitly accepted published boundary.
   the hooks of the resource they open, such as the database or Kafka client.
 - Each bounded context exposes one Fx module named `business.<context>` for
   constructors and registrations.
-- `pkg.Lifecycle` registers the hooks that move traffic: the ConnectRPC server,
-  the Kafka consumer, and the Domain Event dispatcher drain. It is listed after
+- `pkg.Lifecycle` registers the hooks that move traffic: the ConnectRPC
+  servers, the Kafka consumer, and the Domain Event dispatcher drain. It is listed after
   every bounded-context module.
 - `cmd/server/main.go` loads/supplies aggregate configuration from
   `configs/server`, selects modules, configures process timeouts, and runs Fx.
 - Do not move individual component validation, handler registration, client
   construction, or helper functions into `main`.
 - Every goroutine must have an Fx lifecycle stop path.
-- Shutdown runs: server, consumer, dispatcher drain, then clients. `/readyz`
-  turns unavailable as soon as shutdown begins; `/healthz` reports liveness.
+- ConnectRPC listens twice: `connect.addr` serves `private/v1` contracts inside
+  the deployment, `connect.public-addr` serves `public/v1` contracts and is the
+  only port to expose. Register a handler on `PrivateServer` or `PublicServer`
+  by its contract; `Option.Validate` rejects one shared port.
+- Shutdown runs: servers, consumer, dispatcher drain, then clients. `/readyz`
+  on both ports turns unavailable as soon as shutdown begins; `/healthz`
+  reports liveness.
 
 ## Events and messages
 
@@ -202,7 +209,9 @@ production reliability decision.
 - Never attach passwords, tokens, full DSNs, or raw secrets.
 - Print an error exactly once at the outermost execution boundary and always
   pass it through `sloghelper.Error(err)`.
-- ConnectRPC middleware owns RPC error logs; the go-jimu Kafka consumer owns
+- ConnectRPC middleware owns RPC error logs, levelled by Connect code: Info for
+  an outcome the client caused (such as `not_found`), Warn for a transient
+  failure, Error for a server fault; the go-jimu Kafka consumer owns
   consumed-message failures (Warn for a retry, Error for a dropped message);
   Domain Event Handlers log terminal errors because their handler contract
   cannot return one.
@@ -221,7 +230,7 @@ production reliability decision.
 | Business rule or invariant | `model.md` | Domain and Domain tests |
 | Write use case | Model scenario + `design.md` | `Application` method + Domain behavior |
 | Product read | Read-model design | `application/query` query object + QueryRepository adapter |
-| Connect API | API Proto | `transport/connectrpc`; regenerate |
+| Connect API | API Proto (`private/v1`, or `public/v1` for web and app clients) | `transport/connectrpc`; regenerate |
 | Published message | Model relationship + integration Proto | publication boundary + Subscriber |
 | MySQL mapping | Aggregate/persistence design | `infrastructure` + a new `migrations/NNN_*.sql` |
 | Kafka/server/config/lifecycle | Runtime design | `internal/pkg/<component>` |

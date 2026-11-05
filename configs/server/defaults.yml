@@ -31,4 +31,7 @@ mysql:
   max_idle_time: ${MYSQL_MAX_IDLE_TIME:5m}
   max_lifetime: ${MYSQL_MAX_LIFETIME:30m}
 connect:
+  # private/v1 contracts; keep this port inside the deployment.
   addr: "${CONNECT_ADDR::8080}"
+  # public/v1 contracts for web and app clients; the only port to expose.
+  public-addr: "${CONNECT_PUBLIC_ADDR::8081}"

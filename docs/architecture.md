@@ -49,7 +49,8 @@ Connect request
 | --- | --- | --- |
 | Business term, invariant, lifecycle, or context authority | `docs/ddd/model.md` | Domain model after the fact is accepted |
 | Aggregate, transaction, Repository, CQRS, or collaboration shape | `docs/ddd/design.md` | Domain/Application plus adapters |
-| ConnectRPC request or response contract | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
+| ConnectRPC contract for this deployment | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
+| ConnectRPC contract for web and app clients | `proto/<context>/public/v1`; keep it backward compatible | Transport mapping; regenerate `gen/` |
 | Published Integration Message contract | `proto/<context>/integration/v1` | Publication boundary and Message Subscriber |
 | Write use case | Model and design sections for the scenario | `Application` method and Domain behavior |
 | Product read | Read-model section in design | `application/query` query object and Infrastructure QueryRepository |

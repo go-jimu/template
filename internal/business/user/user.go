@@ -5,6 +5,7 @@ import (
 	connect "connectrpc.com/connect"
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
+	"github.com/go-jimu/template/gen/user/public/v1/userpublicv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/application/eventhandler"
 	"github.com/go-jimu/template/internal/business/user/application/query"
@@ -24,6 +25,7 @@ var Module = fx.Module(
 		application.NewApplication,
 		query.NewUsers,
 		userconnectrpc.NewHandler,
+		userconnectrpc.NewProfileHandler,
 	),
 	fx.Invoke(func(
 		subscriber event.Subscriber,
@@ -33,11 +35,19 @@ var Module = fx.Module(
 	}),
 	fx.Invoke(func(
 		handler userv1connect.UserServiceHandler,
-		server sharedconnectrpc.Server,
+		profiles userpublicv1connect.ProfileServiceHandler,
+		private sharedconnectrpc.PrivateServer,
+		public sharedconnectrpc.PublicServer,
 	) {
-		server.Register(userv1connect.NewUserServiceHandler(
+		// private/v1 serves this deployment; public/v1 serves web and app
+		// clients on its own listener, the only one to expose.
+		private.Register(userv1connect.NewUserServiceHandler(
 			handler,
-			connect.WithInterceptors(server.GetGlobalInterceptors()...),
+			connect.WithInterceptors(private.GetGlobalInterceptors()...),
+		))
+		public.Register(userpublicv1connect.NewProfileServiceHandler(
+			profiles,
+			connect.WithInterceptors(public.GetGlobalInterceptors()...),
 		))
 	}),
 )

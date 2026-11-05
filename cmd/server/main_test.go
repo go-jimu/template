@@ -40,8 +40,11 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if option.Connect.Addr != ":8080" {
-		t.Fatalf("Connect.Addr = %q, want %q", option.Connect.Addr, ":8080")
+	if option.Connect.Addr != ":8080" || option.Connect.PublicAddr != ":8081" {
+		t.Fatalf("Connect = %+v, want addr :8080 and public-addr :8081", option.Connect)
+	}
+	if err := option.Connect.Validate(); err != nil {
+		t.Fatalf("default Connect option is invalid: %v", err)
 	}
 	if option.MySQL.Host != "localhost" || option.MySQL.Port != 3306 {
 		t.Fatalf(

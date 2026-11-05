@@ -57,6 +57,22 @@ Generated API types remain outside Domain and Application inputs. Unexpected
 internal errors retain their local diagnostic cause but expose only a safe
 public Connect message.
 
+Two RPC contracts serve two audiences on separate listeners, so exposing the
+public port never exposes a private contract:
+
+- `user.private.v1.UserService` serves this deployment: it may expose
+  internal fields such as email and change with the deployment.
+- `user.public.v1.ProfileService` is externally supported for web and app
+  clients. It exposes only the public view of a User (id and name), reads
+  through the same `query.Users`, and only grows backward compatibly; a
+  breaking change becomes `user.public.v2` alongside v1. `GetProfile` is
+  marked `NO_SIDE_EFFECTS`, so clients may call it with a cacheable HTTP GET.
+  Profiles are public, so it carries no authentication; a public RPC over a
+  caller's own data adds an authentication interceptor on its handler.
+
+`connect.addr` serves the private contracts and `connect.public-addr` the
+public ones; only the public port is exposed outside the deployment.
+
 The shared ConnectRPC interceptor creates request-scoped logging context,
 recovers panics, and owns the single outer error log for an RPC request.
 
@@ -113,7 +129,8 @@ Returning Domain, Application, Infrastructure, and Transport code does not
 print the same error repeatedly. The outer execution boundary prints it once
 with `sloghelper.Error(err)`:
 
-- the ConnectRPC interceptor owns RPC failures;
+- the ConnectRPC interceptor owns RPC failures, at Info when the client caused
+  them, Warn when transient, and Error for a server fault;
 - the go-jimu Kafka consumer owns consumed-message failures, logging a retry at
   Warn and a dropped message at Error;
 - a Domain Event Handler owns its terminal failure because its handler contract
@@ -138,10 +155,10 @@ xorm engine, and messagebus pings and closes the Kafka client.
 
 `pkg.Lifecycle` orders the runtimes that hand work to each other. It is listed
 after every bounded-context module and registers the dispatcher drain, the
-Kafka consumer, and the ConnectRPC server, in that order. Fx stops hooks in
+Kafka consumer, and the ConnectRPC servers, in that order. Fx stops hooks in
 reverse, so shutdown runs:
 
-1. the server turns `/readyz` unavailable and drains in-flight requests;
+1. both servers turn `/readyz` unavailable and drain in-flight requests;
 2. the consumer stops fetching and finishes its current message;
 3. the dispatcher handles every accepted Domain Event; and
 4. the Kafka client and the database close.
@@ -163,4 +180,4 @@ Each step can still use everything stopped after it.
   and start/stop behavior without requiring real MySQL or Kafka.
 - The architecture test parses imports and rejects cross-context or
   outward-pointing dependencies in Domain, Application, Infrastructure, and
-  Transport, and keeps the private RPC contract in Transport.
+  Transport, and keeps the private and public RPC contracts in Transport.

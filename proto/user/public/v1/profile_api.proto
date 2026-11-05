@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package user.public.v1;
+
+option go_package = "github.com/go-jimu/template/gen/user/public/v1;userpublicv1";
+
+// ProfileService is the externally supported User API for web and app
+// clients, over Connect, gRPC, and gRPC-Web.
+//
+// Compatibility: clients outside this deployment depend on this package, so
+// changes stay backward compatible: add fields and RPCs, never renumber,
+// rename, or change the meaning of an existing one. A breaking change is a
+// new package, user.public.v2, served alongside v1. `buf breaking` enforces
+// the wire rules.
+//
+// The contract exposes only what any client may see: a profile has no email
+// or credential. It carries no authentication because profiles are public;
+// an RPC that reads or changes a caller's own data adds an authentication
+// interceptor on this service's handler.
+service ProfileService {
+  // GetProfile returns one user's public profile. It has no side effects, so
+  // Connect clients may call it with HTTP GET, which caches and CDNs can
+  // serve.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// Profile is the public view of a user.
+message Profile {
+  // id is the stable user identifier.
+  string id = 1;
+  // name is the display name.
+  string name = 2;
+}
+
+// GetProfileRequest identifies one user.
+message GetProfileRequest {
+  // id is the user identifier.
+  string id = 1;
+}
+
+// GetProfileResponse contains one public profile.
+message GetProfileResponse {
+  // profile is the user's public view.
+  Profile profile = 1;
+}

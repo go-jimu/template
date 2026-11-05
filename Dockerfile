@@ -19,5 +19,6 @@ COPY --from=builder /out/template /app/template
 COPY configs /app/configs
 
 USER 10001
-EXPOSE 8080
+# 8080 serves private/v1 inside the deployment; 8081 serves public/v1.
+EXPOSE 8080 8081
 ENTRYPOINT ["/app/template"]

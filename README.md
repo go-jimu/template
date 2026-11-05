@@ -91,7 +91,7 @@ Runtime ----------------> modules and technical adapters
 | Change a User invariant | `internal/business/user/domain` |
 | Add a write use case | an `Application` method plus Domain behavior |
 | Add a product read | a query object in `application/query` and the QueryRepository adapter |
-| Change the Connect API | `proto/user/private/v1`, regenerate, then Transport mapping |
+| Change the Connect API | `proto/user/private/v1` (or `public/v1` for web and app clients), regenerate, then Transport mapping |
 | Publish a new cross-context fact | integration Proto plus User publication boundary |
 | Consume an Integration Message | receiving `transport/messagesubscriber` |
 | Change xorm or SQL mapping | `infrastructure` and a new `migrations/NNN_*.sql` |
@@ -165,9 +165,11 @@ make server
 make client
 ~~~
 
-The endpoint supports Connect, gRPC, and gRPC-Web. `GET /healthz` reports
-liveness; `GET /readyz` reports readiness and turns unavailable once shutdown
-begins.
+The server listens on two ports, both speaking Connect, gRPC, and gRPC-Web:
+`:8080` serves the `private/v1` contracts inside the deployment, and `:8081`
+serves the `public/v1` contracts to web and app clients. Expose only `:8081`.
+On both, `GET /healthz` reports liveness and `GET /readyz` reports readiness,
+turning unavailable once shutdown begins.
 
 ## API
 
@@ -177,6 +179,22 @@ begins.
 | Get | Query | Return one User read model |
 | ChangePassword | Command | Apply credential behavior and optimistic locking |
 | List | Query | Return one keyset page of User read models, newest first; pass `next_page_token` back as `page_token` |
+
+These are `user.private.v1.UserService`, the contract for this deployment.
+Web and app clients use the public contract, `user.public.v1.ProfileService`:
+
+| RPC | Side | Purpose |
+| --- | --- | --- |
+| GetProfile | Query | Return one User's public profile: id and name, no email |
+
+The public contract stays backward compatible, and `GetProfile` has no side
+effects, so a browser can call it with a plain GET:
+
+~~~bash
+curl -G http://localhost:8081/user.public.v1.ProfileService/GetProfile \
+  --data-urlencode 'encoding=json' \
+  --data-urlencode 'message={"id":"<user id>"}'
+~~~
 
 ## Configuration
 
@@ -194,7 +212,8 @@ kafka:
   handler-timeout: ${KAFKA_HANDLER_TIMEOUT:5s}
   max-poll-records: 10                           # × handler-timeout < 60s
 connect:
-  addr: ${CONNECT_ADDR::8080}
+  addr: ${CONNECT_ADDR::8080}                # private/v1, inside the deployment
+  public-addr: ${CONNECT_PUBLIC_ADDR::8081}  # public/v1, the only port to expose
 ~~~
 
 Each runtime component validates its own Option/Config in its constructor.
@@ -211,7 +230,8 @@ token, or full DSN.
   `sloghelper.Error(err)`.
 
 Completion records come from the runtime: the ConnectRPC interceptor logs each
-request and the message runtime logs each handled message at Debug through
+request (Info, or for a failure Info/Warn/Error by whether the client, a
+transient failure, or a server fault caused it) and the message runtime logs each handled message at Debug through
 `message.Logging`. Message Subscribers return failures to the go-jimu Kafka
 consumer, which logs a retry at Warn and a dropped message at Error. Domain
 Event Handlers log terminal failures because their handler contract has no
@@ -227,7 +247,8 @@ make tools
 make generate
 ~~~
 
-API contracts live under `proto/<context>/private/v1`. Published Integration
+API contracts live under `proto/<context>/private/v1` for this deployment and
+`proto/<context>/public/v1` for web and app clients. Published Integration
 Message contracts live under `proto/<context>/integration/v1`. Generated code
 belongs under `gen/` and is never edited manually.
 
