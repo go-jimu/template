@@ -40,9 +40,8 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if option.Connect.Addr != ":8080" || option.Connect.PublicAddr != ":8081" ||
-		option.Connect.ShutdownDelay != "5s" {
-		t.Fatalf("Connect = %+v, want addr :8080, public-addr :8081, shutdown-delay 5s", option.Connect)
+	if option.Connect.Addr != ":8080" || option.Connect.ShutdownDelay != "5s" {
+		t.Fatalf("Connect = %+v, want addr :8080, shutdown-delay 5s", option.Connect)
 	}
 	if err := option.Connect.Validate(); err != nil {
 		t.Fatalf("default Connect option is invalid: %v", err)

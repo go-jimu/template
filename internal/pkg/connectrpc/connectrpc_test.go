@@ -12,26 +12,23 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/grpchealth/v2"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type servers struct {
-	private sharedconnectrpc.PrivateServer
-	public  sharedconnectrpc.PublicServer
-}
-
-// startServers starts both listeners on random ports with register applied
-// before start, and returns them with their Fx app.
-func startServers(t *testing.T, register func(sharedconnectrpc.PrivateServer, sharedconnectrpc.PublicServer)) (*fxtest.App, servers) {
+// startServer starts the server on a random port with register applied
+// before start, and returns it with its Fx app.
+func startServer(t *testing.T, register func(sharedconnectrpc.Server)) (*fxtest.App, sharedconnectrpc.Server) {
 	t.Helper()
-	var s servers
+	var server sharedconnectrpc.Server
 	app := fxtest.New(
 		t,
 		fx.Supply(
-			sharedconnectrpc.Option{Addr: "127.0.0.1:0", PublicAddr: "127.0.0.1:0"},
+			sharedconnectrpc.Option{Addr: "127.0.0.1:0"},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
 		fx.Provide(sharedconnectrpc.NewServer),
@@ -39,10 +36,10 @@ func startServers(t *testing.T, register func(sharedconnectrpc.PrivateServer, sh
 			lifecycle.Append(hook.Hook)
 		}),
 		fx.Invoke(register),
-		fx.Populate(&s.private, &s.public),
+		fx.Populate(&server),
 	)
 	app.RequireStart()
-	return app, s
+	return app, server
 }
 
 func status(t *testing.T, method, url string) int {
@@ -76,6 +73,20 @@ func send(t *testing.T, method, url string, header http.Header) int {
 	return response.StatusCode
 }
 
+// health returns the status a grpc.health.v1 Check reports for service; the
+// empty service is readiness. client defaults to an HTTP/1.1 Connect client.
+func health(t *testing.T, base, service string, options ...connecthttp.Option) grpchealth.Status {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	client := grpchealth.NewClient(connect.NewClient(connecthttp.NewTransport(http.DefaultClient, base, options...)))
+	response, err := client.Check(ctx, &grpchealth.CheckRequest{Service: service})
+	if err != nil {
+		t.Fatalf("health check %q: %v", service, err)
+	}
+	return response.Status
+}
+
 // register adds a unary procedure, such as "/test.v1.Service/Call", that
 // answers an empty message.
 func register(server sharedconnectrpc.Server, procedure string) {
@@ -90,53 +101,61 @@ func register(server sharedconnectrpc.Server, procedure string) {
 	})
 }
 
-// Intent: private and public contracts listen on separate ports, so exposing
-// the public port for web and app clients never exposes a private contract.
-// Each port answers the probes and only its own services.
-func TestPrivateAndPublicListenSeparately(t *testing.T) {
-	app, s := startServers(t, func(private sharedconnectrpc.PrivateServer, public sharedconnectrpc.PublicServer) {
-		register(private, "/test.private.v1.Service/Call")
-		register(public, "/test.public.v1.Service/Call")
+// Intent: public and private are contracts, not listeners: one listener
+// serves every registered contract and the probes, and the gateway's routes
+// decide which contracts leave the deployment.
+func TestOneListenerServesEveryContract(t *testing.T) {
+	app, server := startServer(t, func(server sharedconnectrpc.Server) {
+		register(server, "/test.private.v1.Service/Call")
+		register(server, "/test.public.v1.Service/Call")
 	})
 	defer app.RequireStop()
 
-	privateURL, publicURL := "http://"+s.private.Address(), "http://"+s.public.Address()
-	if privateURL == publicURL {
-		t.Fatalf("both listen on %s", privateURL)
-	}
-	tests := []struct {
-		name, url string
-		want      int
-	}{
-		{"private service on private port", privateURL + "/test.private.v1.Service/Call", http.StatusOK},
-		{"public service on public port", publicURL + "/test.public.v1.Service/Call", http.StatusOK},
-		{"private service on public port", publicURL + "/test.private.v1.Service/Call", http.StatusNotFound},
-		{"public service on private port", privateURL + "/test.public.v1.Service/Call", http.StatusNotFound},
-	}
-	for _, test := range tests {
-		if got := status(t, http.MethodPost, test.url); got != test.want {
-			t.Errorf("%s: status = %d, want %d", test.name, got, test.want)
+	base := "http://" + server.Address()
+	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
+		if got := status(t, http.MethodPost, base+procedure); got != http.StatusOK {
+			t.Errorf("POST %s = %d, want 200", procedure, got)
 		}
 	}
-	for _, base := range []string{privateURL, publicURL} {
-		for _, probe := range []string{"/healthz", "/readyz"} {
-			if got := status(t, http.MethodGet, base+probe); got != http.StatusOK {
-				t.Errorf("GET %s%s = %d, want 200", base, probe, got)
-			}
+	for _, service := range []string{"", sharedconnectrpc.LivenessService} {
+		if got := health(t, base, service); got != grpchealth.StatusServing {
+			t.Errorf("health %q = %v, want serving", service, got)
 		}
+	}
+}
+
+// Intent: Kubernetes gRPC probes and gRPC clients speak HTTP/2 without TLS
+// and without an upgrade (prior knowledge), so the listener serves h2c.
+func TestServerSpeaksGRPCOverH2C(t *testing.T) {
+	app, server := startServer(t, func(sharedconnectrpc.Server) {})
+	defer app.RequireStop()
+
+	var protocols http.Protocols
+	protocols.SetUnencryptedHTTP2(true)
+	h2c := &http.Client{Transport: &http.Transport{Protocols: &protocols}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	client := grpchealth.NewClient(connect.NewClient(
+		connecthttp.NewTransport(h2c, "http://"+server.Address(), connecthttp.WithGRPC())))
+	response, err := client.Check(ctx, &grpchealth.CheckRequest{})
+	if err != nil {
+		t.Fatalf("gRPC health check over h2c: %v", err)
+	}
+	if response.Status != grpchealth.StatusServing {
+		t.Fatalf("status = %v, want serving", response.Status)
 	}
 }
 
 // Intent: a server routes the procedures registered before start, an
 // unknown method of a registered service is Connect's unimplemented (501),
-// probes answer GET only, and other paths are not found.
+// and other paths are not found.
 func TestServerRouting(t *testing.T) {
-	app, s := startServers(t, func(private sharedconnectrpc.PrivateServer, _ sharedconnectrpc.PublicServer) {
-		register(private, "/test.v1.Service/Call")
+	app, server := startServer(t, func(server sharedconnectrpc.Server) {
+		register(server, "/test.v1.Service/Call")
 	})
 	defer app.RequireStop()
 
-	base := "http://" + s.private.Address()
+	base := "http://" + server.Address()
 	tests := []struct {
 		method, path string
 		want         int
@@ -144,8 +163,7 @@ func TestServerRouting(t *testing.T) {
 		{http.MethodPost, "/test.v1.Service/Call", http.StatusOK},
 		{http.MethodPost, "/test.v1.Service/Unknown", http.StatusNotImplemented},
 		{http.MethodPost, "/unknown.v1.Service/Call", http.StatusNotFound},
-		{http.MethodPost, "/healthz", http.StatusMethodNotAllowed},
-		{http.MethodPost, "/readyz", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/healthz", http.StatusNotFound},
 	}
 	for _, test := range tests {
 		if got := status(t, test.method, base+test.path); got != test.want {
@@ -174,23 +192,20 @@ func (b *syncBuffer) String() string {
 
 // Intent: every RPC runs through the shared interceptor, which logs it under
 // the caller's X-Request-ID, so a request is traceable across services.
-func TestServersRunTheSharedInterceptor(t *testing.T) {
+func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	var logs syncBuffer
-	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{
-		Addr: "127.0.0.1:0", PublicAddr: "127.0.0.1:0",
-	}, slog.New(slog.NewJSONHandler(&logs, nil)))
+	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{Addr: "127.0.0.1:0"},
+		slog.New(slog.NewJSONHandler(&logs, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	register(out.Private, "/test.private.v1.Service/Call")
-	register(out.Public, "/test.public.v1.Service/Call")
+	register(out.Server, "/test.private.v1.Service/Call")
+	register(out.Server, "/test.public.v1.Service/Call")
 	if err = out.ServeHook.OnStart(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, url := range []string{
-		"http://" + out.Private.Address() + "/test.private.v1.Service/Call",
-		"http://" + out.Public.Address() + "/test.public.v1.Service/Call",
-	} {
+	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
+		url := "http://" + out.Server.Address() + procedure
 		if got := send(t, http.MethodPost, url, http.Header{"X-Request-Id": {"caller-request"}}); got != http.StatusOK {
 			t.Fatalf("POST %s = %d, want 200", url, got)
 		}
@@ -207,32 +222,30 @@ func TestServersRunTheSharedInterceptor(t *testing.T) {
 	}
 }
 
-// Intent: stopping takes both listeners down.
-func TestServersShutDown(t *testing.T) {
-	app, s := startServers(t, func(sharedconnectrpc.PrivateServer, sharedconnectrpc.PublicServer) {})
+// Intent: stopping takes the listener down.
+func TestServerShutsDown(t *testing.T) {
+	app, server := startServer(t, func(sharedconnectrpc.Server) {})
 	app.RequireStop()
 
 	transport := &http.Transport{DisableKeepAlives: true}
 	t.Cleanup(transport.CloseIdleConnections)
 	client := &http.Client{Transport: transport, Timeout: time.Second}
-	for _, address := range []string{s.private.Address(), s.public.Address()} {
-		if _, err := client.Get("http://" + address + "/healthz"); err == nil {
-			t.Errorf("%s still serves after shutdown", address)
-		}
+	if _, err := client.Get("http://" + server.Address() + "/"); err == nil {
+		t.Errorf("%s still serves after shutdown", server.Address())
 	}
 }
 
-// startDirect starts the servers without Fx, so a test can call the stop
+// startDirect starts the server without Fx, so a test can call the stop
 // hook with its own ctx.
 func startDirect(t *testing.T, delay string) (sharedconnectrpc.ServeOut, func(context.Context) error) {
 	t.Helper()
 	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{
-		Addr: "127.0.0.1:0", PublicAddr: "127.0.0.1:0", ShutdownDelay: delay,
+		Addr: "127.0.0.1:0", ShutdownDelay: delay,
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	register(out.Public, "/test.public.v1.Service/Call")
+	register(out.Server, "/test.public.v1.Service/Call")
 	if err = out.ServeHook.OnStart(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -248,29 +261,29 @@ func startDirect(t *testing.T, delay string) (sharedconnectrpc.ServeOut, func(co
 	}
 }
 
-// Intent: on stop, both ports report not ready for shutdown-delay while still
-// serving requests, so load balancers stop routing before the listeners
-// close and no client meets a refused connection.
+// Intent: on stop, the server reports not ready for shutdown-delay while
+// still serving requests, so load balancers stop routing before the listener
+// closes and no client meets a refused connection.
 func TestShutdownDelayKeepsServingWhileNotReady(t *testing.T) {
 	const delay = 400 * time.Millisecond
 	out, stop := startDirect(t, delay.String())
-	privateURL, publicURL := "http://"+out.Private.Address(), "http://"+out.Public.Address()
+	base := "http://" + out.Server.Address()
 
 	started := time.Now()
 	done := make(chan error, 1)
 	go func() { done <- stop(context.Background()) }()
 
 	deadline := time.Now().Add(delay / 2)
-	for status(t, http.MethodGet, publicURL+"/readyz") != http.StatusServiceUnavailable {
+	for health(t, base, "") != grpchealth.StatusNotServing {
 		if time.Now().After(deadline) {
-			t.Fatal("/readyz still ready after stop began")
+			t.Fatal("readiness still serving after stop began")
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if got := status(t, http.MethodGet, privateURL+"/readyz"); got != http.StatusServiceUnavailable {
-		t.Errorf("private /readyz = %d during the delay, want 503", got)
+	if got := health(t, base, sharedconnectrpc.LivenessService); got != grpchealth.StatusServing {
+		t.Errorf("liveness = %v during the delay, want serving: the process is alive", got)
 	}
-	if got := status(t, http.MethodPost, publicURL+"/test.public.v1.Service/Call"); got != http.StatusOK {
+	if got := status(t, http.MethodPost, base+"/test.public.v1.Service/Call"); got != http.StatusOK {
 		t.Errorf("request during the delay = %d, want 200: the listener must still serve", got)
 	}
 

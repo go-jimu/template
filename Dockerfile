@@ -1,24 +1,29 @@
-FROM golang:1.26-bookworm AS builder
+# syntax=docker/dockerfile:1
 
+# The builder runs on the build host's platform and cross-compiles for the
+# target, so a multi-platform build needs no emulation.
+FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS builder
+ARG TARGETOS TARGETARCH
 WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-w -s" -o /out/template ./cmd/server
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=. \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" -o /out/template ./cmd/server
 
-FROM debian:bookworm-slim
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --no-create-home app
-
+# distroless/static carries CA certificates and tzdata, with no shell or
+# package manager. Its nonroot user is UID 65532, numeric so Kubernetes
+# runAsNonRoot can verify it.
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=builder /out/template /app/template
-COPY configs /app/configs
-
-USER 10001
-# 8080 serves private/v1 inside the deployment; 8081 serves public/v1.
-EXPOSE 8080 8081
+# The server reads ./configs/server/defaults.yml; a deployment mounts its own
+# over /app/configs/server.
+COPY configs/server/defaults.yml /app/configs/server/defaults.yml
+USER 65532:65532
+EXPOSE 8080
 ENTRYPOINT ["/app/template"]

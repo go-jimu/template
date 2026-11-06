@@ -1,47 +1,24 @@
-# Architecture Reading Map
+# Architecture
 
-This file is a navigation index, not an additional architecture authority.
-Use the following order when learning or changing the project:
+`docs/ddd/model.md` owns business meaning, `docs/ddd/design.md` owns tactical
+choices, and this file owns the repository's conventions. Code and tests are
+evidence: when they contradict the model or design, surface it to the user.
+A change that alters accepted business meaning or a tactical choice updates
+`model.md` or `design.md` in the same change.
 
-1. [../AGENTS.md](../AGENTS.md) — repository rules and AI working protocol.
-2. [ddd/model.md](ddd/model.md) — business language, authority, invariants, and
-   context relationships.
-3. [ddd/design.md](ddd/design.md) — accepted Aggregate, CQRS, event/message,
-   persistence, error, and runtime decisions.
-4. [../README.md](../README.md) — runnable example, commands, and extension
-   workflow.
+A change is done when `make verify` passes, and `make integration` too when
+SQL or a repository changed.
 
-When these sources disagree, `model.md` owns business meaning, `design.md` owns
-tactical choices, and `AGENTS.md` owns repository coding conventions. Code and
-tests are implementation evidence; they do not silently redefine the model.
+## Scope
 
-## Dependency direction
-
-~~~text
-Transport -> Application -> Domain
-Infrastructure ---------> Domain/Application ports
-Runtime ----------------> bounded-context modules and technical adapters
-~~~
-
-Cross-context code never imports another context's Domain or Application
-packages. Collaboration uses published Integration Messages or an explicitly
-designed read/protocol boundary.
-
-## Example flow
-
-~~~text
-Connect request
-  -> User Transport
-  -> User Application.CreateUser
-  -> User Aggregate
-  -> User Repository
-  -> UserCreated Domain Event
-  -> User Application publication boundary
-  -> UserRegisteredV1 Integration Message
-  -> Kafka runtime
-  -> Notification Message Subscriber
-  -> Notification Application.SendWelcomeNotification
-~~~
+- Stack: ConnectRPC, xorm, Uber Fx, and the go-jimu event and message
+  interfaces. A library or local interface serving the same role (Gin, GORM, a
+  second DI container) stays out.
+- The example implements exactly what `model.md` describes. Email uniqueness,
+  account activation, a deletion lifecycle (the `deleted_at` column is
+  technical), a Notification Aggregate, a real notification provider, task
+  processors, outbox, a dead-letter store, and idempotency storage arrive only
+  when the user asks.
 
 ## Change routing
 
@@ -49,15 +26,107 @@ Connect request
 | --- | --- | --- |
 | Business term, invariant, lifecycle, or context authority | `docs/ddd/model.md` | Domain model after the fact is accepted |
 | Aggregate, transaction, Repository, CQRS, or collaboration shape | `docs/ddd/design.md` | Domain/Application plus adapters |
-| ConnectRPC contract for this deployment | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
-| ConnectRPC contract for web and app clients | `proto/<context>/public/v1`; keep it backward compatible | Transport mapping; regenerate `gen/` |
+| RPC contract for this deployment | `proto/<context>/private/v1` | Transport mapping; regenerate `gen/` |
+| RPC contract for external clients | `proto/<context>/public/v1`; keep it backward compatible | Transport mapping; regenerate `gen/` |
 | Published Integration Message contract | `proto/<context>/integration/v1` | Publication boundary and Message Subscriber |
 | Write use case | Model and design sections for the scenario | `Application` method and Domain behavior |
 | Product read | Read-model section in design | `application/query` query object and Infrastructure QueryRepository |
 | MySQL mapping or SQL | Aggregate/persistence design | `infrastructure` and a new `migrations/NNN_*.sql` |
-| Broker, server, config, or lifecycle mechanics | Runtime design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
-| Dependency injection and registration | Runtime design | bounded-context module; `cmd` only selects modules |
-| Error mapping or logging | Error section in design | Transport/runtime outer boundary |
+| Broker, server, config, or lifecycle mechanics | "Runtime composition and lifecycle" in design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
+| Dependency injection and registration | "Runtime composition and lifecycle" in design | bounded-context module; `cmd` only selects modules |
+| Error mapping or logging | "Error propagation and logging" in design | Transport/runtime outer boundary |
 
-Do not start from a directory name and infer business semantics. Start from the
-accepted fact or use case, then route the implementation to its owner.
+## Bounded context layout
+
+~~~text
+internal/business/<context>/
+  domain/                          Aggregate, behavior, errors, Domain Events, write Repository
+  application/application.go       write-side Application; use cases are its methods
+  application/assembler.go         Aggregate-to-result-DTO assembly, when there is any
+  application/query/               read side: query objects, read DTOs, QueryRepository port
+  application/eventhandler/        same-context Domain Event reactions; publication boundary
+  transport/connectrpc/            inbound API mapping
+  transport/messagesubscriber/     inbound Integration Message mapping
+  infrastructure/                  xorm, DO conversion, ACLs, outbound adapters
+  <context>.go                     bounded-context Fx module, `business.<context>`
+proto/<context>/private/v1/        RPC contract for this deployment
+proto/<context>/public/v1/         RPC contract for external clients; backward compatible
+proto/<context>/integration/v1/    published Integration Message contract
+gen/                               generated by `make generate`; edit the Proto instead
+~~~
+
+`internal/architecture_test.go` enforces each layer's imports, including that
+only Transport imports the private and public RPC contracts. Contexts
+collaborate through Integration Messages.
+
+## Conventions by layer
+
+### Domain
+
+- A write Repository exposes `Get` and `Save`.
+- General-purpose libraries (event collections, UUID, crypto, validation, oops)
+  are allowed when they represent no external system.
+- Aggregate fields are exported for Infrastructure's explicit conversion only;
+  Application and Transport change state through behavior methods.
+
+### Application
+
+- One write-side `Application` per context; every write use case is a method
+  on it, with its Command in the same file. Split files by business
+  responsibility (such as `registration.go`) once there is more than one.
+- A write use case saves the Aggregate, then drains its Domain Events and
+  dispatches them with one `DispatchAll`.
+- Reads are query objects in `application/query`, one per read model (such as
+  `query.Users`), reading the QueryRepository without loading Aggregates.
+  Lists page by keyset cursor.
+- `assembler.go` exists only when Aggregates map to result DTOs.
+- A Domain Event Handler in `application/eventhandler` is the publication
+  boundary: it translates a selected Domain Event into its own Integration
+  Message type for `message.Publisher` (`UserCreated` becomes
+  `UserRegisteredV1`).
+
+### Transport
+
+`transport` means inbound adapters only; server and broker mechanics live in
+`internal/pkg`.
+
+- A Connect handler delegates once (writes to the Application, reads to the
+  query object) and translates errors to Connect codes in `error.go`.
+- A Message Subscriber delegates once to an Application method and returns
+  failures unlogged; the Kafka consumer logs them.
+
+### Infrastructure
+
+- xorm Data Objects are separate types. Conversion is explicit in
+  `infrastructure/convert.go` through exported fields, copying slices, with no
+  `Restore`/`Rehydrate` hook or reflection.
+
+### Runtime and composition
+
+- Each component validates its own Option; a constructor registers only the
+  hooks of the resource it opens.
+- `cmd/server/main.go` only loads configuration, selects modules, sets process
+  timeouts, and runs Fx.
+- Every goroutine has an Fx lifecycle stop path.
+
+## Errors and logging
+
+- Wrap an external error once where it enters code we control, with
+  `oops.With(...).Wrap(err)` carrying the fields that layer owns (bare
+  `oops.Wrap(err)` when there are none). Outer layers return it as is unless
+  they own a new field.
+- Print an error once at its outermost execution boundary, through
+  `sloghelper.Error(err)`; "Error propagation and logging" in
+  `docs/ddd/design.md` names each boundary and its levels.
+- Attribute names, `elapsed_ms`, and levels follow
+  `go doc github.com/go-jimu/components/sloghelper`. Every runtime component
+  gets the process logger.
+
+## Code conventions
+
+- Public Go identifiers have comments.
+- Adapters and Repository implementations carry compile-time interface
+  assertions.
+- A migration starts with a comment stating its intent, its compatibility with
+  running code, and how to reverse it. Applied migrations are immutable; a
+  change is the next number.
