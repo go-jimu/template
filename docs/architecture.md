@@ -75,10 +75,11 @@ collaborate through Integration Messages.
 - One write-side `Application` per context; every write use case is a method
   on it, with its Command in the same file. Split files by business
   responsibility (such as `registration.go`) once there is more than one.
-- A write use case runs in `Within` of the `transaction.Transactor`: it saves
-  the Aggregate, then drains its Domain Events, dispatches them with one
-  `DispatchAll`, and returns its error, so the events commit with the
-  Aggregate.
+- A write use case that raises Domain Events runs in `Within` of the
+  `transaction.Transactor`: it saves the Aggregate, then drains its Domain
+  Events, dispatches them with one `DispatchAll`, and returns its error, so
+  the events commit with the Aggregate. The Outbox rejects a dispatch outside
+  a transaction.
 - Reads are query objects in `application/query`, one per read model (such as
   `query.Users`), reading the QueryRepository without loading Aggregates.
   Lists page by keyset cursor.

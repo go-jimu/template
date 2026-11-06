@@ -65,8 +65,9 @@ the stored credential and the replacement password must contain between 8 and
 A User is registered together with the commitment to announce it: the
 registration stores `UserRegisteredV1`'s pending publication with the User,
 or neither. Publication then retries until it succeeds, at least once; a
-publication or welcome-notification failure never compensates or rolls back
-registration.
+publication that can never succeed, such as an undecodable event, stops and
+waits for a restart or an operator. No publication or welcome-notification
+failure compensates or rolls back registration.
 
 ## Notification bounded context
 

@@ -19,8 +19,8 @@ import (
 
 // OutboxConfig contains the Outbox's Relay policy. Durations use Go syntax.
 type OutboxConfig struct {
-	// Owner names this instance in record leases; the pod name in
-	// Kubernetes. Empty picks a random name.
+	// Owner names this instance in record leases, at most 191 bytes. Empty
+	// means the hostname, the pod name in Kubernetes.
 	Owner        string `json:"owner" toml:"owner" yaml:"owner"`
 	Lease        string `json:"lease" toml:"lease" yaml:"lease"`
 	PollInterval string `json:"poll-interval" toml:"poll-interval" yaml:"poll-interval"`
@@ -30,6 +30,10 @@ type OutboxConfig struct {
 	MaxBackoff   string `json:"max-backoff" toml:"max-backoff" yaml:"max-backoff"`
 	Retention    string `json:"retention" toml:"retention" yaml:"retention"`
 }
+
+// maxOwnerLength is the width of outbox_records.lease_owner; a longer owner
+// fails every insert.
+const maxOwnerLength = 191
 
 // outboxPolicy is OutboxConfig parsed.
 type outboxPolicy struct {
@@ -63,6 +67,9 @@ func (c OutboxConfig) parse() (outboxPolicy, error) {
 			return p, fmt.Errorf("eventbus outbox.%s must be positive", d.name)
 		}
 		*d.into = parsed
+	}
+	if len(c.Owner) > maxOwnerLength {
+		return p, fmt.Errorf("eventbus outbox.owner is longer than %d bytes", maxOwnerLength)
 	}
 	if c.Workers < 1 || c.BatchSize < 1 {
 		return p, errors.New("eventbus outbox.workers and outbox.batch-size must be positive")

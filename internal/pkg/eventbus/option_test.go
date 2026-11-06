@@ -1,6 +1,7 @@
 package eventbus_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-jimu/template/internal/pkg/eventbus"
@@ -29,6 +30,9 @@ func TestConfigValidate(t *testing.T) {
 		"zero outbox batch":         func(c *eventbus.Config) { c.Outbox.BatchSize = 0 },
 		"max backoff below min":     func(c *eventbus.Config) { c.Outbox.MaxBackoff = "500ms" },
 		"negative outbox retention": func(c *eventbus.Config) { c.Outbox.Retention = "-1h" },
+		"owner wider than its column": func(c *eventbus.Config) {
+			c.Outbox.Owner = strings.Repeat("o", 192)
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			invalid := validConfig()

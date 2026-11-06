@@ -97,6 +97,11 @@ func TestMySQLRegistrationThroughOutbox(t *testing.T) {
 			t.Fatalf("message ID/key = %q/%q, want %q/%q", sent.ID(), sent.Key(), recordID+"/0", created.ID)
 		}
 		waitForStatus(t, engine, recordID, outbox.StatusDone)
+		select {
+		case again := <-published:
+			t.Fatalf("published again: %q", again.ID())
+		default:
+		}
 	})
 
 	t.Run("rolled back registration leaves no User and no record", func(t *testing.T) {

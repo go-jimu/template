@@ -6,13 +6,13 @@ eventbus:
   buffer-size: 1024
   workers: 4
   handler-timeout: 10s
-  # The Relay of the must-run handlers. Its workers hold MySQL connections, so
-  # mysql.max_open_conns leaves room for them beside request traffic.
+  # The Relay of the must-run handlers. A record's handler must finish within
+  # lease: its ctx ends there, and the record is retried.
   outbox:
     # Names this instance in record leases; empty means the hostname, which
     # is the pod name in Kubernetes.
     owner: ${OUTBOX_OWNER:}
-    # Above the slowest record's run time, or a second Relay reruns it.
+    # Above the slowest record's run time; it also bounds a hung publish.
     lease: 1m
     poll-interval: 5s
     workers: 4

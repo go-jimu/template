@@ -111,10 +111,12 @@ log.
 
 ## Consistency and reliability
 
-One write use case changes one User Aggregate in one transaction of the
-business database: it runs in `Within` of the `transaction.Transactor`, and
+One write use case changes one User Aggregate. A use case that raises Domain
+Events, such as `CreateUser`, runs in `Within` of the `transaction.Transactor`;
 Repositories take their session from `jimuxorm.DB.Session(ctx)`, so they write
-in that transaction.
+in that transaction. `ChangePassword` raises none and saves directly, guarded
+by the optimistic lock; once it raises an event it moves into `Within`, since
+the Outbox rejects a dispatch outside a transaction.
 
 Domain Event handlers come in two kinds; `go doc
 github.com/go-jimu/components/ddd/event/outbox` is the authority on both.
@@ -125,7 +127,8 @@ github.com/go-jimu/components/ddd/event/outbox` is the authority on both.
   transaction, and the Outbox writes one `outbox_records` row per handler in
   it, so the record commits exactly when the User does. The Relay runs each
   record after commit until its handler succeeds: at least once, retried
-  with backoff (`eventbus.outbox`). An effect outside MySQL, such as a
+  with backoff (`eventbus.outbox`). Handle's ctx ends when the record's
+  lease does, so a hung publish costs one lease, then retries. An effect outside MySQL, such as a
   publish, deduplicates by `outbox.DeliveryFrom(ctx).Key()`; a MySQL write
   takes effect exactly once by calling `outbox.MarkDone` in its transaction.
 - **Best-effort** handlers, such as cache invalidation, subscribe to the
@@ -294,7 +297,7 @@ handed to it at commit. Fx stops hooks in reverse, so shutdown runs:
    logs each dropped event at Error with its kind and key. The other steps
    fall back on retries, redelivery, or a requeue.
 3. The process exits. The Kafka client closes after the Outbox, because it
-   leaves the consumer group and both kinds of handlers publish through it. The TracerProvider shuts down last, flushing the spans of everything
+   leaves the consumer group and must-run handlers publish through it. The TracerProvider shuts down last, flushing the spans of everything
    above: the server and the Kafka client take it as a dependency, so it is
    built before them and stopped after them. Connection pools, such as
    MySQL's, are not closed: closing adds no guarantee to running work, and
