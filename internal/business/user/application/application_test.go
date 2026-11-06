@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/go-jimu/components/ddd/event"
@@ -92,6 +91,8 @@ func TestCreateUserDoesNotDispatchWhenSaveFails(t *testing.T) {
 	}
 }
 
+// The dispatcher reports every rejected event itself, so a dispatch error
+// neither fails registration nor is logged again by the use case.
 func TestCreateUserSucceedsWhenDispatchFails(t *testing.T) {
 	dispatcher := &dispatcherFake{dispatchErr: event.ErrDispatcherClosed}
 	app := application.NewApplication(&repositoryFake{}, dispatcher)
@@ -106,10 +107,8 @@ func TestCreateUserSucceedsWhenDispatchFails(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CreateUser() error = %v, want nil after the User is saved", err)
 	}
-	for _, field := range []string{`"level":"WARN"`, `"operation":"user.events.dispatch"`, `"user_id":`} {
-		if !strings.Contains(logs.String(), field) {
-			t.Fatalf("dispatch log %q does not contain %s", logs.String(), field)
-		}
+	if logs.Len() != 0 {
+		t.Fatalf("CreateUser logged %q; the dispatcher reports rejected events", logs.String())
 	}
 }
 

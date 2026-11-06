@@ -57,8 +57,8 @@ github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9Ufpk2AcUM=
 github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
-github.com/go-jimu/components v0.12.4 h1:NZD93ln51YRExa4ToFwwClAPJ9hw+pv2+dg9b9Y+WKE=
-github.com/go-jimu/components v0.12.4/go.mod h1:jC3XNWmkMl50pAiyPP5BqHyv6SY3Q7wVgzKvbVx1xc4=
+github.com/go-jimu/components v0.12.5 h1:EiTRtAKNOCJ5dYRr1kwWH/43c3eoUqSgnVECo23+64o=
+github.com/go-jimu/components v0.12.5/go.mod h1:jC3XNWmkMl50pAiyPP5BqHyv6SY3Q7wVgzKvbVx1xc4=
 github.com/go-jimu/contrib/message/kafka v0.5.3 h1:J8CcothhYRN1SBOnW504ACpgAUpRR5nflb2OYhCLB+8=
 github.com/go-jimu/contrib/message/kafka v0.5.3/go.mod h1:hxXBnH7UVEkemeCT/GzMRtxTkN5Vtc/SjDgLI3YQ6CA=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
