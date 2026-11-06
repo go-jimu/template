@@ -1,6 +1,6 @@
 // Package eventbus builds the in-process Domain Event dispatcher. The
-// dispatcher is drained by pkg.Lifecycle, which orders it after the servers
-// and consumers that feed it.
+// dispatcher is drained by pkg.Lifecycle, which closes it after the servers
+// and consumers that feed it have finished their running work.
 package eventbus
 
 import (
@@ -18,7 +18,6 @@ import (
 type Config struct {
 	BufferSize     int    `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
 	Workers        int    `json:"workers" toml:"workers" yaml:"workers"`
-	DelayClose     string `json:"delay-close" toml:"delay-close" yaml:"delay-close"`
 	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
 }
 
@@ -29,15 +28,6 @@ func (c Config) Validate() error {
 	}
 	if c.Workers < 1 {
 		return fmt.Errorf("eventbus workers must be positive")
-	}
-	delayClose, err := time.ParseDuration(c.DelayClose)
-	if err != nil {
-		return oops.With("option", "delay-close").
-			With("value", c.DelayClose).
-			Wrap(err)
-	}
-	if delayClose < 0 {
-		return fmt.Errorf("eventbus delay-close cannot be negative")
 	}
 	handlerTimeout, err := time.ParseDuration(c.HandlerTimeout)
 	if err != nil {
@@ -59,12 +49,6 @@ func NewDispatcher(
 	if err := config.Validate(); err != nil {
 		return nil, nil, err
 	}
-	delayClose, err := time.ParseDuration(config.DelayClose)
-	if err != nil {
-		return nil, nil, oops.With("option", "delay-close").
-			With("value", config.DelayClose).
-			Wrap(err)
-	}
 	handlerTimeout, err := time.ParseDuration(config.HandlerTimeout)
 	if err != nil {
 		return nil, nil, oops.With("option", "handler-timeout").
@@ -77,7 +61,6 @@ func NewDispatcher(
 		event.WithLogger(eventLogger),
 		event.WithBufferSize(config.BufferSize),
 		event.WithWorkers(config.Workers),
-		event.WithDelayClose(delayClose),
 		event.WithHandlerTimeout(handlerTimeout),
 		// Handlers log through this logger and name the event themselves.
 		event.WithContextFactory(func(ctx context.Context, _ event.Event) context.Context {

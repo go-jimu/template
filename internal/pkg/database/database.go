@@ -59,7 +59,12 @@ func (o Option) Validate() error {
 	return nil
 }
 
-// NewMySQLDriver creates and lifecycle-manages the shared xorm engine.
+// NewMySQLDriver creates the shared xorm engine and pings it on start. It does
+// not close the engine on stop: shutdown drains the entry points that run
+// transactions, and when the process exits MySQL rolls back any transaction
+// still open. Closing the pool would add no guarantee to running work, only
+// the failure of closing it too early (database/sql: "It is rare to Close a
+// DB").
 func NewMySQLDriver(
 	lifecycle fx.Lifecycle,
 	option Option,
@@ -123,9 +128,6 @@ func NewMySQLDriver(
 				slog.String("database", option.Database),
 			)
 			return nil
-		},
-		OnStop: func(context.Context) error {
-			return oops.Wrap(engine.Close())
 		},
 	})
 	return engine, nil

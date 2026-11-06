@@ -38,7 +38,6 @@ func TestDispatcherRejectsEventsAfterFxStop(t *testing.T) {
 			eventbus.Config{
 				BufferSize:     1,
 				Workers:        1,
-				DelayClose:     "0s",
 				HandlerTimeout: "1s",
 			},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -66,7 +65,6 @@ func TestDispatcherDrainsAcceptedEventsDuringFxStop(t *testing.T) {
 			eventbus.Config{
 				BufferSize:     1,
 				Workers:        1,
-				DelayClose:     "0s",
 				HandlerTimeout: "1s",
 			},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -110,7 +108,7 @@ func (h *loggingHandler) Handle(ctx context.Context, ev event.Event) {
 func TestHandlerContextLoggerHasComponentOnly(t *testing.T) {
 	var logs bytes.Buffer
 	dispatcher, subscriber, err := eventbus.NewDispatcher(
-		eventbus.Config{BufferSize: 1, Workers: 1, DelayClose: "0s", HandlerTimeout: "1s"},
+		eventbus.Config{BufferSize: 1, Workers: 1, HandlerTimeout: "1s"},
 		slog.New(slog.NewJSONHandler(&logs, nil)),
 	)
 	if err != nil {
