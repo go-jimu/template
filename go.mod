@@ -8,7 +8,7 @@ require (
 	connectrpc.com/otelconnect v0.12.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-jimu/components v0.12.4
-	github.com/go-jimu/contrib/message/kafka v0.5.3-0.20261106122012-0c586359dda2
+	github.com/go-jimu/contrib/message/kafka v0.5.3
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
