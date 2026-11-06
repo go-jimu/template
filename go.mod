@@ -7,7 +7,7 @@ require (
 	connectrpc.com/grpchealth/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/go-jimu/components v0.12.10-0.20261106173114-999ab038e409
+	github.com/go-jimu/components v0.12.10
 	github.com/go-jimu/contrib/event/outbox/xorm v0.5.7
 	github.com/go-jimu/contrib/message/kafka v0.5.3
 	github.com/go-jimu/contrib/transaction/xorm v0.5.5
