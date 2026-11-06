@@ -118,7 +118,6 @@ type consumerRuntime struct {
 	consumer   *jimukafka.Consumer
 	logger     *slog.Logger
 	shutdowner fx.Shutdowner
-	cancel     context.CancelFunc
 	done       chan struct{}
 }
 
@@ -164,6 +163,11 @@ func NewKafka(
 		return KafkaOut{}, oops.With("operation", "kafka.consumer.create").Wrap(err)
 	}
 
+	// Closing the client is not resource cleanup; it is kept for two reasons.
+	// It leaves the consumer group, so a rolling deploy reassigns this
+	// member's partitions at once instead of after the session timeout. And
+	// the publisher shares the client, so it closes here, after the Domain
+	// Event dispatcher drains (pkg.Lifecycle), whose handlers still publish.
 	lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if err := client.Ping(ctx); err != nil {
@@ -211,10 +215,8 @@ func (s loggingSubscriber) Subscribe(handler message.Handler) error {
 }
 
 func (r *consumerRuntime) start(context.Context) error {
-	runCtx, cancel := context.WithCancel(
-		sloghelper.NewContext(context.Background(), r.logger),
-	)
-	r.cancel = cancel
+	// stop ends Run through Shutdown, so its ctx is never canceled.
+	runCtx := sloghelper.NewContext(context.Background(), r.logger)
 	r.done = make(chan struct{})
 	go func() {
 		defer close(r.done)
@@ -230,15 +232,20 @@ func (r *consumerRuntime) start(context.Context) error {
 	return nil
 }
 
+// stop shuts the consumer down gracefully: it polls no more and lets the
+// running handlers finish and commit. When ctx, Fx's stop budget, ends first,
+// the handlers are canceled and their records left for redelivery.
 func (r *consumerRuntime) stop(ctx context.Context) error {
-	if r.cancel == nil {
+	if r.done == nil {
 		return nil
 	}
-	r.cancel()
+	if err := r.consumer.Shutdown(ctx); err != nil {
+		return oops.With("operation", "kafka.consumer.shutdown").Wrap(err)
+	}
 	select {
 	case <-r.done:
 		return nil
 	case <-ctx.Done():
-		return oops.With("operation", "kafka.consumer.stop").Wrap(ctx.Err())
+		return oops.With("operation", "kafka.consumer.shutdown").Wrap(ctx.Err())
 	}
 }

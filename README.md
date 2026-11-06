@@ -221,10 +221,12 @@ connect:
 ~~~
 
 On SIGTERM the process shuts down gracefully within 30s: readiness turns
-`NOT_SERVING` and the server keeps serving for `shutdown-delay`, then requests drain, the
-Kafka consumer finishes its current message, and Domain Events drain before
-the clients close. Give the orchestrator a longer kill grace period, such as
-Kubernetes `terminationGracePeriodSeconds: 40`.
+`NOT_SERVING` and the server keeps serving for `shutdown-delay`, then requests
+drain and the Kafka consumer lets its running handlers finish and commit;
+then Domain Events drain, follow-ups included, before the Kafka client closes.
+Database connections are not closed. Give the orchestrator a longer kill
+grace period, such as Kubernetes `terminationGracePeriodSeconds: 40`.
+`docs/ddd/design.md` explains the order and the budget.
 
 Each runtime component validates its own Option/Config in its constructor.
 `main` only loads and supplies aggregate configuration. Never log a password,

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
@@ -77,7 +78,7 @@ func TestApplicationDependencyGraphIsComplete(t *testing.T) {
 		Connect:  connectrpc.Option{},
 	}
 	if err := fx.ValidateApp(
-		application(option),
+		application(option, pkg.Module),
 		fx.NopLogger,
 	); err != nil {
 		t.Fatal(err)

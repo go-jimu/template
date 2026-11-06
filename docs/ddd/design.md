@@ -156,29 +156,46 @@ selects modules, configures process timeouts, and runs Fx; it does not validate
 or construct individual components.
 
 Each runtime component validates its own option. Constructors register the
-hooks of the resource they open: the database package pings and closes the
-xorm engine, and messagebus pings and closes the Kafka client.
+hooks of the resource they open: the database package pings the xorm engine,
+and messagebus pings and closes the Kafka client.
 
-`pkg.Lifecycle` orders the runtimes that hand work to each other. It is listed
-after every bounded-context module and registers the dispatcher drain, the
-Kafka consumer, and the ConnectRPC server, in that order. Fx stops hooks in
-reverse, so shutdown runs:
+Shutdown drains only the process's entry points, so that every running
+execution reaches its end: committed or rolled back, acknowledged or left
+for redelivery. Running work keeps a ctx that shutdown does not cancel and
+is bounded by its own timeout; only the end of the stop budget abandons it.
+`pkg.Lifecycle` is listed after every bounded-context module and registers
+the dispatcher drain, the Kafka consumer, and the ConnectRPC server, in that
+order. Fx stops hooks in reverse, so shutdown runs:
 
-1. the server reports `NOT_SERVING` for readiness, keeps serving for
+1. Entry points stop taking work and finish what is running. The server
+   reports `NOT_SERVING` for readiness, keeps serving for
    `connect.shutdown-delay` so load balancers stop routing to it, then closes
-   its listener and drains in-flight requests;
-2. the consumer stops fetching and finishes its current message;
-3. the dispatcher handles every accepted Domain Event; and
-4. the Kafka client and the database close.
+   its listener and drains in-flight requests. The consumer polls no more and
+   lets its running handlers finish and commit (`Consumer.Shutdown`). A task
+   worker or scheduler added later belongs to this layer. Entry points do not
+   hand work to each other in-process: Integration Messages go to the broker
+   and tasks to their queue.
+2. The dispatcher drains. Every entry point above runs use cases that raise
+   Domain Events, so it closes last; it keeps handling events, the follow-ups
+   its own handlers dispatch included, until it is idle. It is the only step
+   that loses work when it runs out of time, and it logs each dropped event
+   at Error with its kind and key; the other steps fall back on retries,
+   redelivery, or a requeue.
+3. The process exits. The Kafka client closes after the dispatcher, because
+   it leaves the consumer group and the dispatcher's handlers publish through
+   it. Connection pools, such as MySQL's, are not closed: closing adds no
+   guarantee to running work, and MySQL rolls back any transaction still open
+   when the process exits.
 
-Each step can still use everything stopped after it. The whole sequence runs
-within `fx.StopTimeout` (30s in `cmd/server`): the shutdown delay (5s), the
-request drain, the consumer's running handler (`kafka.handler-timeout`, 5s),
-and the dispatcher (`eventbus.delay-close` plus `eventbus.handler-timeout`,
-11s) fit inside it. The orchestrator must wait longer than the stop timeout
-before it kills the process, such as Kubernetes
-`terminationGracePeriodSeconds: 40`; a longer delay or handler timeout
-raises both.
+Each step can still use everything stopped after it. Fx runs the stop hooks
+one after another on one deadline, `fx.StopTimeout` (30s in `cmd/server`),
+so their durations add up: the shutdown delay (5s) plus the request drain,
+the consumer's running handlers (`kafka.handler-timeout`, 5s), and the
+dispatcher's handlers (`eventbus.handler-timeout`, 10s, more for a chain of
+follow-ups). The dispatcher gets whatever remains. The orchestrator must wait
+longer than the stop timeout before it kills the process, such as Kubernetes
+`terminationGracePeriodSeconds: 40`; a longer delay or handler timeout raises
+both.
 
 ## Verification seams
 
@@ -192,7 +209,10 @@ raises both.
   shape. Integration tests (`make integration`) apply `migrations/` to MySQL in
   Docker and cover the repository, keyset paging, and the list query plan.
 - Runtime tests cover option validation, Fx graph completeness, request logging,
-  and start/stop behavior without requiring real MySQL or Kafka.
+  and start/stop behavior without requiring real MySQL or Kafka. An
+  application test assembles every module over recording fakes and checks the
+  start and stop order above; a misplaced or missing `pkg.Lifecycle` passes
+  `fx.ValidateApp` but fails it.
 - The architecture test parses imports and rejects cross-context or
   outward-pointing dependencies in Domain, Application, Infrastructure, and
   Transport, and keeps the private and public RPC contracts in Transport.
