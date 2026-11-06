@@ -151,9 +151,9 @@ Debug.
 ## Runtime composition and lifecycle
 
 Each bounded context exposes an Fx module that owns its constructors and
-registrations. `internal/app` loads and supplies aggregate configuration,
-selects modules, and configures process timeouts; `cmd/server/main.go` runs
-it with Fx. Neither validates nor constructs individual components.
+registrations. `cmd/server/main.go` loads and supplies aggregate configuration,
+selects modules, configures process timeouts, and runs Fx; it does not validate
+or construct individual components.
 
 Each runtime component validates its own option. Constructors register the
 hooks of the resource they open: the database package pings the xorm engine,
@@ -188,7 +188,7 @@ order. Fx stops hooks in reverse, so shutdown runs:
    when the process exits.
 
 Each step can still use everything stopped after it. Fx runs the stop hooks
-one after another on one deadline, `fx.StopTimeout` (30s in `internal/app`),
+one after another on one deadline, `fx.StopTimeout` (30s in `cmd/server`),
 so their durations add up: the shutdown delay (5s) plus the request drain,
 the consumer's running handlers (`kafka.handler-timeout`, 5s), and the
 dispatcher's handlers (`eventbus.handler-timeout`, 10s, more for a chain of

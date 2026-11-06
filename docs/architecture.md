@@ -105,9 +105,8 @@ collaborate through Integration Messages.
 
 - Each component validates its own Option; a constructor registers only the
   hooks of the resource it opens.
-- `internal/app` only loads configuration, selects modules, and sets process
-  timeouts; `cmd/server/main.go` only runs it with Fx. Composition tests live
-  in `internal/app`, not under `cmd`.
+- `cmd/server/main.go` only loads configuration, selects modules, sets process
+  timeouts, and runs Fx.
 - Every goroutine has an Fx lifecycle stop path.
 
 ## Errors and logging
