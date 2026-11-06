@@ -1,6 +1,6 @@
 BUF_VERSION ?= v1.67.0
 PROTOC_GEN_GO_VERSION ?= v1.36.11
-PROTOC_GEN_CONNECT_GO_VERSION ?= v1.20.0
+PROTOC_GEN_CONNECT_GO_VERSION ?= v2.0.2
 
 .PHONY: test
 test:
@@ -39,4 +39,4 @@ mod-tidy:
 tools:
 	go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
-	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@$(PROTOC_GEN_CONNECT_GO_VERSION)
+	go install connectrpc.com/connect/v2/cmd/protoc-gen-connect-go@$(PROTOC_GEN_CONNECT_GO_VERSION)

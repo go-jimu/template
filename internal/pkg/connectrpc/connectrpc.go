@@ -18,7 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
@@ -98,10 +99,17 @@ func resolve(name, address string) (*net.TCPAddr, error) {
 	return resolved, nil
 }
 
-// Server registers generated Connect handlers on one listener.
+// Server is one listener and the connect.Server that dispatches its RPCs.
+// Every RPC on it runs through the shared interceptors (see NewCarrier).
 type Server interface {
-	GetGlobalInterceptors() []connect.Interceptor
-	Register(string, http.Handler)
+	// Registry is the connect.Server that generated code registers handlers
+	// on, such as userv1connect.RegisterUserServiceHandler(s.Registry(), h).
+	// Register before the Fx start hook runs: the listener mounts routes for
+	// the services registered by then, and a service registered later is
+	// never routed.
+	Registry() *connect.Server
+	// Address returns the bound address after startup or the configured
+	// address before startup.
 	Address() string
 }
 
@@ -138,15 +146,15 @@ type servers struct {
 	public        *server
 }
 
-// server is one listener with its own routes.
+// server is one listener with its own routes and connect.Server.
 type server struct {
-	surface      string
-	address      string
-	logger       *slog.Logger
-	interceptors []connect.Interceptor
-	mux          *http.ServeMux
-	httpServer   *http.Server
-	listener     net.Listener
+	surface    string
+	address    string
+	logger     *slog.Logger
+	registry   *connect.Server
+	mux        *http.ServeMux
+	httpServer *http.Server
+	listener   net.Listener
 }
 
 var _ Server = (*server)(nil)
@@ -154,7 +162,8 @@ var _ Server = (*server)(nil)
 // NewServer creates the private and public ConnectRPC servers. On both ports
 // /healthz reports that the process is alive, and /readyz whether it is
 // serving; /readyz turns unavailable once shutdown begins so load balancers
-// stop routing to it.
+// stop routing to it. Both accept the Connect, gRPC, and gRPC-Web protocols
+// and connect-go's default 4 MiB limit per received message.
 func NewServer(
 	shutdowner fx.Shutdowner,
 	option Option,
@@ -164,10 +173,10 @@ func NewServer(
 	if err != nil {
 		return ServeOut{}, err
 	}
-	interceptors := []connect.Interceptor{NewCarrier(logger).Intercept()}
+	carrier := NewCarrier(logger).Intercept()
 	s := &servers{logger: logger, shutdowner: shutdowner, shutdownDelay: shutdownDelay}
-	s.private = s.newServer("private", option.Addr, interceptors)
-	s.public = s.newServer("public", option.PublicAddr, interceptors)
+	s.private = s.newServer("private", option.Addr, carrier)
+	s.public = s.newServer("public", option.PublicAddr, carrier)
 	return ServeOut{
 		Private:   s.private,
 		Public:    s.public,
@@ -175,7 +184,7 @@ func NewServer(
 	}, nil
 }
 
-func (s *servers) newServer(surface, address string, interceptors []connect.Interceptor) *server {
+func (s *servers) newServer(surface, address string, interceptors ...connect.ServerInterceptor) *server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
 		response.WriteHeader(http.StatusOK)
@@ -188,11 +197,11 @@ func (s *servers) newServer(surface, address string, interceptors []connect.Inte
 		response.WriteHeader(http.StatusOK)
 	})
 	return &server{
-		surface:      surface,
-		address:      address,
-		logger:       s.logger.With(slog.String("surface", surface)),
-		interceptors: interceptors,
-		mux:          mux,
+		surface:  surface,
+		address:  address,
+		logger:   s.logger.With(slog.String("surface", surface)),
+		registry: connect.NewServer(interceptors...),
+		mux:      mux,
 		httpServer: &http.Server{
 			Addr:              address,
 			Handler:           h2c.NewHandler(mux, &http2.Server{}),
@@ -203,9 +212,13 @@ func (s *servers) newServer(surface, address string, interceptors []connect.Inte
 	}
 }
 
-// start binds both listeners before serving either, so a port conflict fails
-// startup without leaving one surface half up.
+// start mounts each server's registered procedures, then binds both
+// listeners before serving either, so a port conflict fails startup without
+// leaving one surface half up.
 func (s *servers) start(context.Context) error {
+	for _, srv := range []*server{s.private, s.public} {
+		srv.mount()
+	}
 	for _, srv := range []*server{s.private, s.public} {
 		listener, err := net.Listen("tcp", srv.address)
 		if err != nil {
@@ -273,17 +286,19 @@ func (s *servers) serve(srv *server) {
 	}
 }
 
-// GetGlobalInterceptors returns an isolated copy of shared interceptors.
-func (s *server) GetGlobalInterceptors() []connect.Interceptor {
-	return append([]connect.Interceptor(nil), s.interceptors...)
+// Registry returns the connect.Server that handlers register on.
+func (s *server) Registry() *connect.Server {
+	return s.registry
 }
 
-// Register mounts one generated Connect handler on its service path, such as
-// "/user.private.v1.UserService/", which serves every procedure under it.
-func (s *server) Register(pattern string, handler http.Handler) {
-	pattern = strings.TrimSuffix(pattern, "/") + "/"
-	s.mux.Handle(pattern, handler)
-	s.logger.Info("ConnectRPC handler registered", slog.String("pattern", pattern))
+// mount routes every registered procedure, such as
+// "/user.private.v1.UserService/Create", to the connect.Server. Paths of
+// unregistered services fall through to the probes or a 404.
+func (s *server) mount() {
+	connecthttp.Mount(s.mux, s.registry)
+	for spec := range s.registry.Specs() {
+		s.logger.Info("ConnectRPC procedure mounted", slog.String("procedure", spec.Procedure))
+	}
 }
 
 // Address returns the bound address after startup or the configured address

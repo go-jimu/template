@@ -130,7 +130,9 @@ uses an Integration Message or another explicitly accepted published boundary.
 `http.RoundTripper`, a network client, or a place for runtime server mechanics.
 
 - Connect handlers validate/map protocol input, delegate once, map output, and
-  translate errors.
+  translate errors. connect-go v2 sends a client only a `*connect.Error` the
+  handler built, so return `mapError(err)` or `publicError(code, err)`, which
+  keep `err` as the unsent cause.
 - Message Subscribers validate/map an Integration Message and delegate once to
   an Application method. Connect handlers send writes to the Application and
   reads to the query object.
@@ -172,8 +174,11 @@ uses an Integration Message or another explicitly accepted published boundary.
 - Every goroutine must have an Fx lifecycle stop path.
 - ConnectRPC listens twice: `connect.addr` serves `private/v1` contracts inside
   the deployment, `connect.public-addr` serves `public/v1` contracts and is the
-  only port to expose. Register a handler on `PrivateServer` or `PublicServer`
-  by its contract; `Option.Validate` rejects one shared port.
+  only port to expose. Register a generated handler on
+  `PrivateServer.Registry()` or `PublicServer.Registry()` by its contract,
+  such as `userv1connect.RegisterUserServiceHandler(private.Registry(), h)`;
+  interceptors belong to the server, not the handler. `Option.Validate`
+  rejects one shared port.
 - Shutdown runs: servers, consumer, dispatcher drain, then clients. `/readyz`
   on both ports turns unavailable as soon as shutdown begins, and the servers
   keep serving for `connect.shutdown-delay` before closing so load balancers

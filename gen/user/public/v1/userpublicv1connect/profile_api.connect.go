@@ -5,37 +5,38 @@
 package userpublicv1connect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	v1 "github.com/go-jimu/template/gen/user/public/v1"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// ProfileServiceName is the fully-qualified name of the ProfileService service.
 	ProfileServiceName = "user.public.v1.ProfileService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ProfileServiceGetProfileProcedure is the fully-qualified name of the ProfileService's GetProfile
-	// RPC.
+	// ProfileServiceGetProfileProcedure is the procedure name of the ProfileService's GetProfile RPC.
 	ProfileServiceGetProfileProcedure = "/user.public.v1.ProfileService/GetProfile"
+)
+
+var (
+	profileServiceGetProfileSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType:       connect.StreamTypeUnary,
+			Schema:           v1.File_user_public_v1_profile_api_proto.Services().ByName("ProfileService").Methods().ByName("GetProfile"),
+			Procedure:        ProfileServiceGetProfileProcedure,
+			IdempotencyLevel: connect.IdempotencyNoSideEffects,
+		}
+	})
 )
 
 // ProfileServiceClient is a client for the user.public.v1.ProfileService service.
@@ -43,38 +44,13 @@ type ProfileServiceClient interface {
 	// GetProfile returns one user's public profile. It has no side effects, so
 	// Connect clients may call it with HTTP GET, which caches and CDNs can
 	// serve.
-	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
+	GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error)
 }
 
-// NewProfileServiceClient constructs a client for the user.public.v1.ProfileService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewProfileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ProfileServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	profileServiceMethods := v1.File_user_public_v1_profile_api_proto.Services().ByName("ProfileService").Methods()
-	return &profileServiceClient{
-		getProfile: connect.NewClient[v1.GetProfileRequest, v1.GetProfileResponse](
-			httpClient,
-			baseURL+ProfileServiceGetProfileProcedure,
-			connect.WithSchema(profileServiceMethods.ByName("GetProfile")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// profileServiceClient implements ProfileServiceClient.
-type profileServiceClient struct {
-	getProfile *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
-}
-
-// GetProfile calls user.public.v1.ProfileService.GetProfile.
-func (c *profileServiceClient) GetProfile(ctx context.Context, req *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error) {
-	return c.getProfile.CallUnary(ctx, req)
+// NewProfileServiceClient constructs a client for the user.public.v1.ProfileService service.
+// Multiple service clients may share a single connect.Client.
+func NewProfileServiceClient(client *connect.Client) ProfileServiceClient {
+	return &profileServiceClient{client: client}
 }
 
 // ProfileServiceHandler is an implementation of the user.public.v1.ProfileService service.
@@ -82,36 +58,47 @@ type ProfileServiceHandler interface {
 	// GetProfile returns one user's public profile. It has no side effects, so
 	// Connect clients may call it with HTTP GET, which caches and CDNs can
 	// serve.
-	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
+	GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error)
 }
 
-// NewProfileServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewProfileServiceHandler(svc ProfileServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	profileServiceMethods := v1.File_user_public_v1_profile_api_proto.Services().ByName("ProfileService").Methods()
-	profileServiceGetProfileHandler := connect.NewUnaryHandler(
-		ProfileServiceGetProfileProcedure,
-		svc.GetProfile,
-		connect.WithSchema(profileServiceMethods.ByName("GetProfile")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
+// RegisterProfileServiceHandler registers svc as the user.public.v1.ProfileService implementation
+// on server.
+func RegisterProfileServiceHandler(server *connect.Server, svc ProfileServiceHandler) {
+	adapter := profileServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: profileServiceGetProfileSpec(), Handler: adapter.getProfile},
 	)
-	return "/user.public.v1.ProfileService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case ProfileServiceGetProfileProcedure:
-			profileServiceGetProfileHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedProfileServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProfileServiceHandler struct{}
 
-func (UnimplementedProfileServiceHandler) GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.public.v1.ProfileService.GetProfile is not implemented"))
+func (UnimplementedProfileServiceHandler) GetProfile(context.Context, *v1.GetProfileRequest) (*v1.GetProfileResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "user.public.v1.ProfileService.GetProfile is not implemented")
+}
+
+type profileServiceClient struct {
+	client *connect.Client
+}
+
+func (c *profileServiceClient) GetProfile(ctx context.Context, req *v1.GetProfileRequest) (*v1.GetProfileResponse, error) {
+	var res v1.GetProfileResponse
+	if err := c.client.CallUnary(ctx, profileServiceGetProfileSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type profileServiceHandler struct{ svc ProfileServiceHandler }
+
+func (h profileServiceHandler) getProfile(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetProfileRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetProfile(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

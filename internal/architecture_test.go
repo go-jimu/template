@@ -249,7 +249,7 @@ func TestForbiddenBusinessImportRules(t *testing.T) {
 		{"infrastructure", module + "/gen/user/private/v1/userv1connect", true},
 		{"infrastructure", module + "/internal/business/user/transport/connectrpc", true},
 		{"infrastructure", module + "/internal/business/user/application/query", false},
-		{"infrastructure", "connectrpc.com/connect", true},
+		{"infrastructure", "connectrpc.com/connect/v2", true},
 		{"transport", module + "/gen/user/private/v1", false},
 		{"application", module + "/gen/user/public/v1", true},
 		{"infrastructure", module + "/gen/user/public/v1/userpublicv1connect", true},

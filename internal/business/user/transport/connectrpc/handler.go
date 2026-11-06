@@ -4,7 +4,7 @@ package connectrpc
 import (
 	"context"
 
-	connect "connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	userv1 "github.com/go-jimu/template/gen/user/private/v1"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
@@ -29,85 +29,73 @@ func NewHandler(app *application.Application, users *query.Users) userv1connect.
 // Create maps the protocol request to the CreateUser command.
 func (h *Handler) Create(
 	ctx context.Context,
-	request *connect.Request[userv1.CreateRequest],
-) (*connect.Response[userv1.CreateResponse], error) {
+	request *userv1.CreateRequest,
+) (*userv1.CreateResponse, error) {
 	result, err := h.application.CreateUser(ctx, application.CreateUser{
-		Name:     request.Msg.GetName(),
-		Password: request.Msg.GetPassword(),
-		Email:    request.Msg.GetEmail(),
+		Name:     request.GetName(),
+		Password: request.GetPassword(),
+		Email:    request.GetEmail(),
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&userv1.CreateResponse{
+	return &userv1.CreateResponse{
 		User: userToProto(result),
-	}), nil
+	}, nil
 }
 
 // Get maps the protocol request to the Users.Get query.
 func (h *Handler) Get(
 	ctx context.Context,
-	request *connect.Request[userv1.GetRequest],
-) (*connect.Response[userv1.GetResponse], error) {
-	if request.Msg.GetId() == "" {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			oops.With("field", "id").Errorf("id is required"),
-		)
+	request *userv1.GetRequest,
+) (*userv1.GetResponse, error) {
+	if request.GetId() == "" {
+		return nil, publicError(connect.CodeInvalidArgument, oops.With("field", "id").Errorf("id is required"))
 	}
-	result, err := h.users.Get(ctx, request.Msg.GetId())
+	result, err := h.users.Get(ctx, request.GetId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&userv1.GetResponse{
+	return &userv1.GetResponse{
 		User: readUserToProto(result),
-	}), nil
+	}, nil
 }
 
 // ChangePassword maps the protocol request to the ChangePassword command.
 func (h *Handler) ChangePassword(
 	ctx context.Context,
-	request *connect.Request[userv1.ChangePasswordRequest],
-) (*connect.Response[userv1.ChangePasswordResponse], error) {
-	if request.Msg.GetId() == "" {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			oops.With("field", "id").Errorf("id is required"),
-		)
+	request *userv1.ChangePasswordRequest,
+) (*userv1.ChangePasswordResponse, error) {
+	if request.GetId() == "" {
+		return nil, publicError(connect.CodeInvalidArgument, oops.With("field", "id").Errorf("id is required"))
 	}
 	err := h.application.ChangePassword(ctx, application.ChangePassword{
-		UserID:          request.Msg.GetId(),
-		CurrentPassword: request.Msg.GetCurrentPassword(),
-		NewPassword:     request.Msg.GetNewPassword(),
+		UserID:          request.GetId(),
+		CurrentPassword: request.GetCurrentPassword(),
+		NewPassword:     request.GetNewPassword(),
 	})
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&userv1.ChangePasswordResponse{}), nil
+	return &userv1.ChangePasswordResponse{}, nil
 }
 
 // List maps the protocol request to the ListUsers query.
 func (h *Handler) List(
 	ctx context.Context,
-	request *connect.Request[userv1.ListRequest],
-) (*connect.Response[userv1.ListResponse], error) {
-	if request.Msg.GetPageSize() < 0 {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			oops.With("page_size", request.Msg.GetPageSize()).
-				Errorf("page_size cannot be negative"),
-		)
+	request *userv1.ListRequest,
+) (*userv1.ListResponse, error) {
+	if request.GetPageSize() < 0 {
+		return nil, publicError(connect.CodeInvalidArgument, oops.With("page_size", request.GetPageSize()).
+			Errorf("page_size cannot be negative"))
 	}
-	after, err := decodePageToken(request.Msg.GetPageToken())
+	after, err := decodePageToken(request.GetPageToken())
 	if err != nil {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			oops.With("field", "page_token").Errorf("page_token is malformed"),
-		)
+		return nil, publicError(connect.CodeInvalidArgument, oops.With("field", "page_token").Errorf("page_token is malformed"))
 	}
 	result, err := h.users.List(ctx, query.ListUsers{
-		NamePrefix: request.Msg.GetNamePrefix(),
-		PageSize:   int(request.Msg.GetPageSize()),
+		NamePrefix: request.GetNamePrefix(),
+		PageSize:   int(request.GetPageSize()),
 		After:      after,
 	})
 	if err != nil {
@@ -117,8 +105,8 @@ func (h *Handler) List(
 	for index := range result.Users {
 		users[index] = readUserToProto(result.Users[index])
 	}
-	return connect.NewResponse(&userv1.ListResponse{
+	return &userv1.ListResponse{
 		Users:         users,
 		NextPageToken: encodePageToken(result.NextCursor),
-	}), nil
+	}, nil
 }

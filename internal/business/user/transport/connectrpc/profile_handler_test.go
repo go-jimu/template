@@ -3,13 +3,15 @@ package connectrpc_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
-	connect "connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	userpublicv1 "github.com/go-jimu/template/gen/user/public/v1"
 	"github.com/go-jimu/template/gen/user/public/v1/userpublicv1connect"
 	"github.com/go-jimu/template/internal/business/user/application/query"
@@ -22,15 +24,14 @@ import (
 func newProfileServer(t *testing.T, repository query.Repository) (*httptest.Server, *[]string) {
 	t.Helper()
 	methods := &[]string{}
-	path, handler := userpublicv1connect.NewProfileServiceHandler(
-		userconnectrpc.NewProfileHandler(query.NewUsers(repository)),
-	)
+	registry := connect.NewServer()
+	userpublicv1connect.RegisterProfileServiceHandler(registry, userconnectrpc.NewProfileHandler(query.NewUsers(repository)))
 	mux := http.NewServeMux()
-	mux.Handle(path, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+	connecthttp.Mount(mux, registry)
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		*methods = append(*methods, request.Method)
-		handler.ServeHTTP(response, request)
+		mux.ServeHTTP(response, request)
 	}))
-	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server, methods
 }
@@ -41,14 +42,14 @@ var alice = query.User{ID: "0197e113-98c8-7c96-a6cd-1d1fc868825a", Name: "Alice"
 // no-side-effect RPC travels as HTTP GET when the client asks for it.
 func TestGetProfileOverConnectGet(t *testing.T) {
 	server, methods := newProfileServer(t, &queryRepositoryStub{user: alice})
-	client := userpublicv1connect.NewProfileServiceClient(server.Client(), server.URL, connect.WithHTTPGet())
+	client := userpublicv1connect.NewProfileServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL, connecthttp.WithHTTPGet())))
 
 	response, err := client.GetProfile(context.Background(),
-		connect.NewRequest(&userpublicv1.GetProfileRequest{Id: alice.ID}))
+		&userpublicv1.GetProfileRequest{Id: alice.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
-	profile := response.Msg.GetProfile()
+	profile := response.GetProfile()
 	if profile.GetId() != alice.ID || profile.GetName() != alice.Name {
 		t.Fatalf("profile = %v, want id %s and name %s", profile, alice.ID, alice.Name)
 	}
@@ -86,25 +87,33 @@ func TestGetProfileFromWebAsJSON(t *testing.T) {
 }
 
 // Intent: public outcomes are Connect codes: a missing id is
-// InvalidArgument and an unknown user NotFound.
+// InvalidArgument and an unknown user NotFound, each with a message the
+// client can act on. Any other failure is Internal with a fixed message, so
+// its cause never reaches the client.
 func TestGetProfileErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		id   string
-		err  error
-		want connect.Code
+		name        string
+		id          string
+		err         error
+		wantCode    connect.Code
+		wantMessage string
 	}{
-		{"missing id", "", nil, connect.CodeInvalidArgument},
-		{"unknown user", "missing-user", domain.ErrUserNotFound, connect.CodeNotFound},
+		{"missing id", "", nil, connect.CodeInvalidArgument, "id is required"},
+		{"unknown user", "missing-user", domain.ErrUserNotFound, connect.CodeNotFound, "user not found"},
+		{"server fault", "user-1", errors.New("database password rejected"), connect.CodeInternal, "internal server error"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			server, _ := newProfileServer(t, &queryRepositoryStub{err: test.err})
-			client := userpublicv1connect.NewProfileServiceClient(server.Client(), server.URL)
+			client := userpublicv1connect.NewProfileServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
 			_, err := client.GetProfile(context.Background(),
-				connect.NewRequest(&userpublicv1.GetProfileRequest{Id: test.id}))
-			if connect.CodeOf(err) != test.want {
-				t.Fatalf("code = %v (%v), want %v", connect.CodeOf(err), err, test.want)
+				&userpublicv1.GetProfileRequest{Id: test.id})
+			if connect.CodeOf(err) != test.wantCode {
+				t.Fatalf("code = %v (%v), want %v", connect.CodeOf(err), err, test.wantCode)
+			}
+			var connectErr *connect.Error
+			if !errors.As(err, &connectErr) || connectErr.Message() != test.wantMessage {
+				t.Fatalf("error = %v, want message %q", err, test.wantMessage)
 			}
 		})
 	}

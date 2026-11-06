@@ -8,26 +8,24 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/samber/oops"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+var spec = connect.Spec{Procedure: "/test.v1.Service/Call"}
 
 func TestCarrierLogsReturnedErrorOnceAtTheOuterBoundary(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, nil))
 	cause := errors.New("database unavailable")
 	interceptor := sharedconnectrpc.NewCarrier(logger).Intercept()(
-		func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
-			return nil, oops.With("user_id", "user-1").Wrap(cause)
+		func(context.Context, connect.Spec, connect.ServerStream) error {
+			return oops.With("user_id", "user-1").Wrap(cause)
 		},
 	)
 
-	_, err := interceptor(
-		context.Background(),
-		connect.NewRequest(&emptypb.Empty{}),
-	)
+	err := interceptor(context.Background(), spec, nil)
 	if !errors.Is(err, cause) {
 		t.Fatalf("interceptor error = %v, want %v", err, cause)
 	}
@@ -41,6 +39,7 @@ func TestCarrierLogsReturnedErrorOnceAtTheOuterBoundary(t *testing.T) {
 		`"outcome":"failed"`,
 		`"elapsed_ms":`,
 		`"error":`,
+		`"operation":"/test.v1.Service/Call"`,
 	} {
 		if !strings.Contains(output, field) {
 			t.Fatalf("completion log %q does not contain %s", output, field)
@@ -79,11 +78,11 @@ func TestCarrierLevelsFailuresByCode(t *testing.T) {
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewJSONHandler(&logs, nil))
 			interceptor := sharedconnectrpc.NewCarrier(logger).Intercept()(
-				func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
-					return nil, connect.NewError(test.code, errors.New("failed"))
+				func(context.Context, connect.Spec, connect.ServerStream) error {
+					return connect.NewError(test.code, "failed")
 				},
 			)
-			_, _ = interceptor(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+			_ = interceptor(context.Background(), spec, nil)
 
 			if !strings.Contains(logs.String(), `"level":"`+test.want+`"`) {
 				t.Fatalf("log = %s, want level %s", logs.String(), test.want)
@@ -99,13 +98,37 @@ func TestCarrierLevelsFailuresByCode(t *testing.T) {
 func TestCarrierLogsPanicAsError(t *testing.T) {
 	var logs bytes.Buffer
 	interceptor := sharedconnectrpc.NewCarrier(slog.New(slog.NewJSONHandler(&logs, nil))).Intercept()(
-		func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) { panic("boom") },
+		func(context.Context, connect.Spec, connect.ServerStream) error { panic("boom") },
 	)
-	_, err := interceptor(context.Background(), connect.NewRequest(&emptypb.Empty{}))
+	err := interceptor(context.Background(), spec, nil)
 	if connect.CodeOf(err) != connect.CodeInternal {
 		t.Fatalf("code = %v, want internal", connect.CodeOf(err))
 	}
 	if !strings.Contains(logs.String(), `"level":"ERROR"`) {
 		t.Fatalf("log = %s, want ERROR", logs.String())
+	}
+}
+
+// Intent: the client sees only the fixed message of an internal error, but
+// the log records its cause with the fields attached where it entered, so an
+// operator can diagnose the fault.
+func TestCarrierLogsTheCauseBehindAConnectError(t *testing.T) {
+	var logs bytes.Buffer
+	interceptor := sharedconnectrpc.NewCarrier(slog.New(slog.NewJSONHandler(&logs, nil))).Intercept()(
+		func(context.Context, connect.Spec, connect.ServerStream) error {
+			cause := oops.With("user_id", "user-1").Wrap(errors.New("dial tcp: connection refused"))
+			return connect.NewError(connect.CodeInternal, "internal server error").WithCause(cause)
+		},
+	)
+	err := interceptor(context.Background(), spec, nil)
+
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) || connectErr.Message() != "internal server error" {
+		t.Fatalf("error = %v, want the fixed internal message", err)
+	}
+	for _, want := range []string{"connection refused", `"user_id":"user-1"`} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("log does not contain %s: %s", want, logs.String())
+		}
 	}
 }
