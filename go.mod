@@ -7,7 +7,7 @@ require (
 	connectrpc.com/grpchealth/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/go-jimu/components v0.12.4
+	github.com/go-jimu/components v0.12.5
 	github.com/go-jimu/contrib/message/kafka v0.5.3
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-sql-driver/mysql v1.8.1

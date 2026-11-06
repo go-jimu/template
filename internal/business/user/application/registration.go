@@ -2,11 +2,8 @@ package application
 
 import (
 	"context"
-	"log/slog"
 
-	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/business/user/domain"
-	"github.com/samber/oops"
 )
 
 // CreateUser is the protocol-neutral input for registering a User.
@@ -17,8 +14,9 @@ type CreateUser struct {
 }
 
 // CreateUser registers a User, persists it, then dispatches its Domain Events.
-// Event dispatch is best effort: registration succeeds once the User is saved,
-// and a dispatch failure is logged here, where it is suppressed.
+// Registration succeeds once the User is saved: a dispatch error means only
+// that the follow-ups will not run, and the dispatcher has already logged each
+// rejected event, so the error is ignored here.
 func (a *Application) CreateUser(ctx context.Context, cmd CreateUser) (*User, error) {
 	user, err := domain.NewUser(cmd.Name, cmd.Password, cmd.Email)
 	if err != nil {
@@ -27,14 +25,6 @@ func (a *Application) CreateUser(ctx context.Context, cmd CreateUser) (*User, er
 	if err = a.repository.Save(ctx, user); err != nil {
 		return nil, err
 	}
-	if err = a.dispatcher.DispatchAll(ctx, user.Events.Drain()); err != nil {
-		sloghelper.FromContext(ctx).WarnContext(
-			ctx,
-			"user created; domain event dispatch failed",
-			slog.String("operation", "user.events.dispatch"),
-			slog.String("user_id", user.ID),
-			sloghelper.Error(oops.With("user_id", user.ID).Wrap(err)),
-		)
-	}
+	_ = a.dispatcher.DispatchAll(ctx, user.Events.Drain())
 	return AssembleUserEntity(user), nil
 }

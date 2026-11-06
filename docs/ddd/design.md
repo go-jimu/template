@@ -113,8 +113,11 @@ One write use case changes one User Aggregate. User persistence is its
 consistency boundary. Domain Event dispatch and Integration Message publication
 happen after that persistence boundary.
 
-Event dispatch is best effort in the template: a dispatch failure is recorded
-where it is deliberately suppressed, and registration still succeeds. The
+Event dispatch is best effort in the template: registration succeeds once the
+User is saved, and the use case ignores a dispatch error. The dispatcher logs
+each rejected event at Error with its kind and key, on the request's ctx, so
+the use case does not log it again. A full queue holds the request up to the
+dispatcher's admission timeout (5s by default) before rejecting. The
 Kafka consumer's `failure-policy` is `retry` by default, which handles a failed
 message again in place, after a backoff and before the rest of its partition,
 and drops it after 3 attempts; or `drop`, which commits it at once.
