@@ -31,14 +31,13 @@ type Option struct {
 // configDirectory is relative to the repository root, where the server runs.
 const configDirectory = "./configs/server"
 
-// application lists the modules in start order. infrastructure provides the
-// shared runtime adapters, pkg.Module in production. pkg.Lifecycle comes last
-// so it can order the runtimes the bounded contexts registered with.
-func application(option Option, infrastructure fx.Option) fx.Option {
+// application lists the modules in start order. pkg.Lifecycle comes last so
+// it can order the runtimes the bounded contexts registered with.
+func application(option Option) fx.Option {
 	return fx.Options(
 		fx.Supply(option),
 		fx.Provide(sloghelper.NewLog),
-		infrastructure,
+		pkg.Module,
 		user.Module,
 		notification.Module,
 		pkg.Lifecycle,
@@ -56,7 +55,7 @@ func main() {
 		slog.Error("failed to load configuration", sloghelper.Error(oops.Wrap(err)))
 		os.Exit(1)
 	}
-	app := fx.New(application(option, pkg.Module))
+	app := fx.New(application(option))
 	slog.Info("starting application")
 	app.Run()
 }

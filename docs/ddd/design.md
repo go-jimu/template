@@ -208,11 +208,8 @@ both.
 - Infrastructure tests cover explicit conversion and optimistic-lock SQL
   shape. Integration tests (`make integration`) apply `migrations/` to MySQL in
   Docker and cover the repository, keyset paging, and the list query plan.
-- Runtime tests cover option validation, Fx graph completeness, request logging,
-  and start/stop behavior without requiring real MySQL or Kafka. An
-  application test assembles every module over recording fakes and checks the
-  start and stop order above; a misplaced or missing `pkg.Lifecycle` passes
-  `fx.ValidateApp` but fails it.
+- Runtime tests cover option validation, request logging, and start/stop
+  behavior without requiring real MySQL or Kafka.
 - The architecture test parses imports and rejects cross-context or
   outward-pointing dependencies in Domain, Application, Infrastructure, and
   Transport, and keeps the private and public RPC contracts in Transport.
