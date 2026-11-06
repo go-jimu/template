@@ -35,7 +35,7 @@ SQL or a repository changed.
 | Broker, server, config, or lifecycle mechanics | "Runtime composition and lifecycle" in design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
 | Dependency injection and registration | "Runtime composition and lifecycle" in design | bounded-context module; `cmd` only selects modules |
 | Error mapping or logging | "Error propagation and logging" in design | Transport/runtime outer boundary |
-| API logs: access log, handler logs, request ID | "API logging" in design | `internal/pkg/connectrpc` interceptor; `internal/pkg/requestid` |
+| API logs: access log, handler logs, request ID | "API logging" in design | `internal/pkg/connectrpc` interceptor |
 
 ## Bounded context layout
 
@@ -123,7 +123,7 @@ collaborate through Integration Messages.
   `go doc github.com/go-jimu/components/sloghelper`. Every runtime component
   gets the process logger.
 - An RPC needs no logging code: the interceptor writes its access log. Log
-  with the work's ctx so `request_id` is attached, and never log payloads,
+  through the ctx logger with the work's ctx, and never log payloads,
   credentials, or personal data, in an attribute or in `oops.With`; "API
   logging" in `docs/ddd/design.md` has the full rules.
 

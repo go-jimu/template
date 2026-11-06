@@ -198,13 +198,13 @@ oops context of an error (`oops.With(...)`), which the access log prints:
   `user_id` instead.
 
 **Request ID.** The interceptor takes the request ID from `X-Request-ID`, or
-generates one (`<host>/<random>-<sequence>`) when it is missing, and puts it in
-the request's ctx (`internal/pkg/requestid`). The process logger adds
-`request_id` to every record logged with a ctx that carries it, so the code
-never adds it by hand. The Domain Event dispatcher copies it onto its
-handlers' ctx, so a handler's logs, and the dispatcher's own logs about the
-event, name the request that raised it. Integration Messages do not carry it
-yet: a consumer's logs have no `request_id`.
+generates one (`<host>/<random>-<sequence>`) when it is missing, and binds it
+to the logger it puts in the request's ctx, so a handler logging through
+`sloghelper.FromContext(ctx)` names the request without adding it by hand.
+The ID covers the RPC only: Domain Event handlers and Integration Message
+consumers log without it. Correlating a request across those boundaries and
+across services is the job of trace context (W3C `traceparent`), not of a
+request ID carried further.
 
 For external traffic the gateway owns the ID: it generates it, replaces one an
 external client sent, and writes it into the response when clients need it.

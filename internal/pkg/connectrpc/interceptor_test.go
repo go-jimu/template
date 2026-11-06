@@ -9,9 +9,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
-	"github.com/go-jimu/components/sloghelper"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
-	"github.com/go-jimu/template/internal/pkg/requestid"
 	"github.com/samber/oops"
 )
 
@@ -131,40 +129,6 @@ func TestCarrierLogsTheCauseBehindAConnectError(t *testing.T) {
 	for _, want := range []string{"connection refused", `"user_id":"user-1"`} {
 		if !strings.Contains(logs.String(), want) {
 			t.Errorf("log does not contain %s: %s", want, logs.String())
-		}
-	}
-}
-
-// Intent: the request ID travels in the handler's ctx, the caller's
-// X-Request-ID or a generated one, so a log the handler writes with its ctx
-// names the request like the completion log does.
-func TestCarrierPutsTheRequestIDInTheHandlerContext(t *testing.T) {
-	var logs bytes.Buffer
-	logger := requestid.Logger(slog.New(slog.NewJSONHandler(&logs, nil)))
-	var handlerID string
-	interceptor := sharedconnectrpc.NewCarrier(logger).Intercept()(
-		func(ctx context.Context, _ connect.Spec, _ connect.ServerStream) error {
-			handlerID, _ = requestid.FromContext(ctx)
-			sloghelper.FromContext(ctx).InfoContext(ctx, "handler fact")
-			return nil
-		},
-	)
-
-	if err := interceptor(context.Background(), spec, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if handlerID == "" {
-		t.Fatal("handler ctx carries no request ID")
-	}
-	want := `"request_id":"` + handlerID + `"`
-	lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("logs = %q, want the handler log and the completion log", logs.String())
-	}
-	for _, line := range lines {
-		if strings.Count(line, `"request_id"`) != 1 || !strings.Contains(line, want) {
-			t.Errorf("log %s does not carry %s once", line, want)
 		}
 	}
 }

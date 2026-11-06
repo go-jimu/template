@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/pkg/requestid"
 	"github.com/samber/oops"
 )
 
@@ -63,15 +62,8 @@ func NewDispatcher(
 		event.WithBufferSize(config.BufferSize),
 		event.WithWorkers(config.Workers),
 		event.WithHandlerTimeout(handlerTimeout),
-		// Handlers log through this logger and name the event themselves. The
-		// request ID of the Dispatch caller is copied, so a handler's logs name
-		// the request that raised the event.
+		// Handlers log through this logger and name the event themselves.
 		event.WithContextFactory(func(ctx context.Context, _ event.Event) context.Context {
-			if source, ok := event.SourceContext(ctx); ok {
-				if id, ok := requestid.FromContext(source); ok {
-					ctx = requestid.NewContext(ctx, id)
-				}
-			}
 			return sloghelper.NewContext(ctx, eventLogger)
 		}),
 	)

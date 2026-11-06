@@ -15,7 +15,6 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/grpchealth/v2"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
-	"github.com/go-jimu/template/internal/pkg/requestid"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -196,7 +195,7 @@ func (b *syncBuffer) String() string {
 func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	var logs syncBuffer
 	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{Addr: "127.0.0.1:0"},
-		requestid.Logger(slog.New(slog.NewJSONHandler(&logs, nil))))
+		slog.New(slog.NewJSONHandler(&logs, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,15 +215,9 @@ func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	}
 
 	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
-		var found bool
-		for _, line := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
-			if strings.Contains(line, `"operation":"`+procedure+`"`) {
-				found = strings.Contains(line, `"request_id":"caller-request"`)
-				break
-			}
-		}
-		if !found {
-			t.Errorf("no completion log of %s with request_id caller-request:\n%s", procedure, logs.String())
+		want := `"request_id":"caller-request","operation":"` + procedure + `"`
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("logs do not contain %s:\n%s", want, logs.String())
 		}
 	}
 }

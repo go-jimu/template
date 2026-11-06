@@ -7,13 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
-	"github.com/go-jimu/template/internal/pkg/requestid"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )
@@ -131,62 +129,4 @@ func TestHandlerContextLoggerHasComponentOnly(t *testing.T) {
 	if !strings.Contains(line, `"component":"eventbus"`) {
 		t.Fatalf("log %s has no eventbus component", line)
 	}
-}
-
-// Intent: a Domain Event handler logs the request ID of the request that
-// raised the event, and so does the dispatcher when it rejects an event, so
-// the event side of a request is found by its ID.
-func TestEventLogsCarryTheRequestID(t *testing.T) {
-	var logs syncBuffer
-	dispatcher, subscriber, err := eventbus.NewDispatcher(
-		eventbus.Config{BufferSize: 1, Workers: 1, HandlerTimeout: "1s"},
-		requestid.Logger(slog.New(slog.NewJSONHandler(&logs, nil))),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	handler := &loggingHandler{handled: make(chan struct{}, 1)}
-	subscriber.Subscribe(handler)
-
-	requestCtx := requestid.NewContext(context.Background(), "request-7")
-	if err = dispatcher.Dispatch(requestCtx, testEvent{}); err != nil {
-		t.Fatal(err)
-	}
-	<-handler.handled
-	if err = dispatcher.Close(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if err = dispatcher.Dispatch(requestCtx, testEvent{}); !errors.Is(err, event.ErrDispatcherClosed) {
-		t.Fatalf("Dispatch() error = %v, want %v", err, event.ErrDispatcherClosed)
-	}
-
-	for _, message := range []string{`"msg":"handled"`, `"msg":"domain event dispatch rejected"`} {
-		var line string
-		for _, candidate := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
-			if strings.Contains(candidate, message) {
-				line = candidate
-			}
-		}
-		if !strings.Contains(line, `"request_id":"request-7"`) {
-			t.Errorf("log %s of %s has no request_id request-7:\n%s", line, message, logs.String())
-		}
-	}
-}
-
-// syncBuffer is a bytes.Buffer safe for the dispatcher's worker goroutines.
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (b *syncBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.Write(p)
-}
-
-func (b *syncBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.String()
 }

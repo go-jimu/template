@@ -14,7 +14,6 @@ import (
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/messagebus"
-	"github.com/go-jimu/template/internal/pkg/requestid"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
 )
@@ -38,8 +37,6 @@ func application(option Option) fx.Option {
 	return fx.Options(
 		fx.Supply(option),
 		fx.Provide(sloghelper.NewLog),
-		// Every log written with a request's ctx names the request.
-		fx.Decorate(requestid.Logger),
 		pkg.Module,
 		user.Module,
 		notification.Module,
