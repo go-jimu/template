@@ -24,8 +24,11 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/grpchealth/v2"
+	"connectrpc.com/otelconnect"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/template/internal/pkg/telemetry"
 	"github.com/samber/oops"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
 
@@ -134,18 +137,38 @@ var _ Server = (*server)(nil)
 // gateway health checks call: the empty service name reports readiness,
 // SERVING from start until shutdown begins, so load balancers stop routing
 // first; LivenessService reports that the process is alive.
+//
+// Every RPC but health checks continues the caller's trace from its
+// traceparent header, or starts one, before the Carrier logs it; see "Trace
+// context" in docs/ddd/design.md.
 func NewServer(
 	shutdowner fx.Shutdowner,
 	option Option,
 	logger *slog.Logger,
+	tracerProvider trace.TracerProvider,
 ) (ServeOut, error) {
 	shutdownDelay, err := option.shutdownDelay()
 	if err != nil {
 		return ServeOut{}, err
 	}
+	tracing, err := otelconnect.NewServerInterceptor(
+		otelconnect.WithTracerProvider(tracerProvider),
+		otelconnect.WithPropagator(telemetry.Propagator),
+		// The gateway owns the trust boundary for external traffic; inside it
+		// a caller's span is the parent, so one trace spans services.
+		otelconnect.WithTrustRemote(),
+		otelconnect.WithoutMetrics(),
+		otelconnect.WithFilter(func(_ context.Context, spec connect.Spec) bool {
+			return !strings.HasPrefix(spec.Procedure, healthProcedurePrefix)
+		}),
+	)
+	if err != nil {
+		return ServeOut{}, oops.With("operation", "connectrpc.tracing").Wrap(err)
+	}
 	health := grpchealth.NewStaticChecker(LivenessService)
 	health.SetStatus("", grpchealth.StatusNotServing)
-	registry := connect.NewServer(NewCarrier(logger).Intercept())
+	// The tracing interceptor is outermost, so the Carrier logs inside the span.
+	registry := connect.NewServer(tracing, NewCarrier(logger).Intercept())
 	grpchealth.Register(registry, health)
 
 	var protocols http.Protocols

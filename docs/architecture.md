@@ -35,7 +35,7 @@ SQL or a repository changed.
 | Broker, server, config, or lifecycle mechanics | "Runtime composition and lifecycle" in design | `internal/pkg/<component>`; shutdown order in `internal/pkg/lifecycle.go` |
 | Dependency injection and registration | "Runtime composition and lifecycle" in design | bounded-context module; `cmd` only selects modules |
 | Error mapping or logging | "Error propagation and logging" in design | Transport/runtime outer boundary |
-| API logs: access log, handler logs, request ID | "API logging" in design | `internal/pkg/connectrpc` interceptor |
+| API logs and trace context: access log, handler logs, trace ID | "API logging" in design | `internal/pkg/connectrpc` interceptor; `internal/pkg/telemetry` |
 
 ## Bounded context layout
 

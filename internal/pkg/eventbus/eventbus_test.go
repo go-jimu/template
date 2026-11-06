@@ -12,6 +12,8 @@ import (
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )
@@ -128,5 +130,41 @@ func TestHandlerContextLoggerHasComponentOnly(t *testing.T) {
 	}
 	if !strings.Contains(line, `"component":"eventbus"`) {
 		t.Fatalf("log %s has no eventbus component", line)
+	}
+}
+
+type traceHandler struct {
+	traced chan trace.SpanContext
+}
+
+func (*traceHandler) Listening() []event.Kind { return []event.Kind{"test.event"} }
+
+func (h *traceHandler) Handle(ctx context.Context, _ event.Event) {
+	h.traced <- trace.SpanContextFromContext(ctx)
+}
+
+// Intent: a Domain Event handler continues the trace of the request that
+// dispatched the event, so what it does and publishes stays on that trace.
+func TestHandlerContinuesTheDispatchersTrace(t *testing.T) {
+	dispatcher, subscriber, err := eventbus.NewDispatcher(
+		eventbus.Config{BufferSize: 1, Workers: 1, HandlerTimeout: "1s"},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dispatcher.Close(context.Background())
+	handler := &traceHandler{traced: make(chan trace.SpanContext, 1)}
+	subscriber.Subscribe(handler)
+
+	requestCtx, span := sdktrace.NewTracerProvider().Tracer("test").Start(context.Background(), "request")
+	defer span.End()
+	if err = dispatcher.Dispatch(requestCtx, testEvent{}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := <-handler.traced
+	if got.TraceID() != span.SpanContext().TraceID() {
+		t.Fatalf("handler trace = %s, want the dispatcher's %s", got.TraceID(), span.SpanContext().TraceID())
 	}
 }

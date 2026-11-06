@@ -54,6 +54,10 @@ spec:
               valueFrom:
                 resourceFieldRef:
                   resource: limits.memory
+            # Names the service on its spans. Logs carry trace IDs either way;
+            # set OTEL_EXPORTER_OTLP_ENDPOINT to export spans to a collector.
+            - name: OTEL_SERVICE_NAME
+              value: template
           # grpc.health.v1.Health: the empty service is readiness, "liveness"
           # reports that the process is alive.
           startupProbe:

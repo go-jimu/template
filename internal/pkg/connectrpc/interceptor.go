@@ -2,14 +2,10 @@ package connectrpc
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -18,23 +14,20 @@ import (
 	"github.com/samber/oops"
 )
 
-const headerRequestID = "X-Request-ID"
-
 var healthProcedurePrefix = "/" + grpchealth.HealthV1ServiceName + "/"
 
-// Carrier gives every RPC its request-scoped logger and writes its one
-// completion log, the access log of the service. "API logging" in
-// docs/ddd/design.md states its attributes and levels, what handlers log, and
-// what no log may contain.
+// Carrier gives every RPC the process logger in its ctx and writes its one
+// completion log, the access log of the service. The trace_id and span_id of
+// the RPC's span come from the logger's handler (telemetry.LogAttrs). "API
+// logging" in docs/ddd/design.md states its attributes and levels, what
+// handlers log, and what no log may contain.
 type Carrier struct {
-	logger  *slog.Logger
-	counter uint64
-	prefix  string
+	logger *slog.Logger
 }
 
 // NewCarrier creates the interceptor every RPC on the ConnectRPC server runs through.
 func NewCarrier(logger *slog.Logger) *Carrier {
-	return &Carrier{logger: logger, prefix: requestIDPrefix()}
+	return &Carrier{logger: logger}
 }
 
 // Intercept returns the server interceptor. It wraps the whole call, unary
@@ -47,14 +40,7 @@ func (c *Carrier) Intercept() connect.ServerInterceptor {
 				return next(ctx, spec, stream)
 			}
 			startedAt := time.Now()
-			var requestID string
-			if info, ok := connect.CallInfoForServerContext(ctx); ok {
-				requestID = info.RequestHeader().Get(headerRequestID)
-			}
-			if requestID == "" {
-				requestID = fmt.Sprintf("%s-%06d", c.prefix, atomic.AddUint64(&c.counter, 1))
-			}
-			logger := c.logger.With(slog.String("request_id", requestID))
+			logger := c.logger
 			ctx = sloghelper.NewContext(ctx, logger)
 
 			func() {
@@ -130,17 +116,4 @@ func failureLevel(code connect.Code) slog.Level {
 	default:
 		return slog.LevelError
 	}
-}
-
-func requestIDPrefix() string {
-	hostname, err := os.Hostname()
-	if hostname == "" || err != nil {
-		hostname = "localhost"
-	}
-	var random [12]byte
-	if _, err = rand.Read(random[:]); err != nil {
-		return hostname
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(random[:])
-	return fmt.Sprintf("%s/%s", hostname, strings.TrimRight(encoded, "=")[:10])
 }

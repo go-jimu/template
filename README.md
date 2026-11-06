@@ -69,6 +69,7 @@ internal/pkg/
   database/                       shared xorm engine
   eventbus/                       in-process Domain Event dispatcher
   messagebus/                     go-jimu Kafka runtime
+  telemetry/                      OpenTelemetry tracing and trace IDs in logs
   lifecycle.go                    start and shutdown order of the runtimes
 migrations/                       ordered MySQL migrations
 proto/                            source API and published message contracts
@@ -227,6 +228,12 @@ then Domain Events drain, follow-ups included, before the Kafka client closes.
 Database connections are not closed. Give the orchestrator a longer kill
 grace period, such as Kubernetes `terminationGracePeriodSeconds: 40`.
 `docs/ddd/design.md` explains the order and the budget.
+
+Tracing uses the standard OpenTelemetry environment: `OTEL_SERVICE_NAME`
+names the service, and setting `OTEL_EXPORTER_OTLP_ENDPOINT` exports spans
+over OTLP/HTTP. Without it, logs still carry `trace_id` and `span_id`, which
+correlate one request across RPCs, Domain Events, Kafka, and services ("Trace
+context" in `docs/ddd/design.md`).
 
 Each runtime component validates its own Option/Config in its constructor.
 `main` only loads and supplies aggregate configuration. Never log a password,

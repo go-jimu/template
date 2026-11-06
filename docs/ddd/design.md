@@ -159,7 +159,7 @@ requests.
 
 | Attribute | Value |
 | --- | --- |
-| `request_id` | the request's ID; see "Request ID" below |
+| `trace_id`, `span_id` | the RPC's span; see "Trace context" below |
 | `operation` | the procedure, such as `/user.private.v1.UserService/Get` |
 | `outcome` | `success` or `failed` |
 | `connect_code` | `ok`, or the Connect code sent to the client |
@@ -197,20 +197,29 @@ oops context of an error (`oops.With(...)`), which the access log prints:
 - personal data, such as an email address, phone number, or name: log the
   `user_id` instead.
 
-**Request ID.** The interceptor takes the request ID from `X-Request-ID`, or
-generates one (`<host>/<random>-<sequence>`) when it is missing, and binds it
-to the logger it puts in the request's ctx, so a handler logging through
-`sloghelper.FromContext(ctx)` names the request without adding it by hand.
-The ID covers the RPC only: Domain Event handlers and Integration Message
-consumers log without it. Correlating a request across those boundaries and
-across services is the job of trace context (W3C `traceparent`), not of a
-request ID carried further.
+**Trace context.** The trace ID correlates every log of one request, across
+RPCs, Domain Events, Kafka, and services; there is no separate request ID.
+OpenTelemetry (`internal/pkg/telemetry`) carries it as W3C trace context:
 
-For external traffic the gateway owns the ID: it generates it, replaces one an
-external client sent, and writes it into the response when clients need it.
-The service accepts the header as it comes, does not echo it, and does not
-validate it: the JSON log handler escapes it, and the server's 16 KiB header
-limit bounds its size.
+- an RPC continues the caller's `traceparent`, or starts a trace, before the
+  interceptor logs it (otelconnect);
+- a Domain Event handler continues the trace of the request that dispatched
+  the event (the eventbus context factory, from `event.SourceContext`);
+- a publish writes `traceparent` into the record headers, and a consumer's
+  handlers continue it (kotel, and contrib's `WithRecordContext`).
+
+The process logger adds `trace_id` and `span_id` to every record logged with
+a ctx that carries a span (`telemetry.LogAttrs`), so code only logs with the
+ctx of its work. Business code starts no spans of its own.
+
+The SDK always creates trace and span IDs, so logs correlate without a
+tracing backend; spans are exported over OTLP/HTTP only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. `OTEL_SERVICE_NAME` and
+`OTEL_TRACES_SAMPLER` follow the OpenTelemetry environment specification.
+
+The server trusts an incoming `traceparent` as the parent span. For external
+traffic the gateway owns that boundary: it starts or replaces the trace
+context of requests from outside the deployment.
 
 ## Runtime composition and lifecycle
 
@@ -247,9 +256,11 @@ order. Fx stops hooks in reverse, so shutdown runs:
    redelivery, or a requeue.
 3. The process exits. The Kafka client closes after the dispatcher, because
    it leaves the consumer group and the dispatcher's handlers publish through
-   it. Connection pools, such as MySQL's, are not closed: closing adds no
-   guarantee to running work, and MySQL rolls back any transaction still open
-   when the process exits.
+   it. The TracerProvider shuts down last, flushing the spans of everything
+   above: the server and the Kafka client take it as a dependency, so it is
+   built before them and stopped after them. Connection pools, such as
+   MySQL's, are not closed: closing adds no guarantee to running work, and
+   MySQL rolls back any transaction still open when the process exits.
 
 Each step can still use everything stopped after it. Fx runs the stop hooks
 one after another on one deadline, `fx.StopTimeout` (30s in `cmd/server`),
