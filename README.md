@@ -43,7 +43,7 @@ tactical choices. Code and tests show how those decisions are implemented.
 ## Project layout
 
 ~~~text
-cmd/server/                       server entry point and module selection
+cmd/server/                       server entry point; runs internal/app
 cmd/client/                       example client
 configs/server/defaults.yml       runtime configuration
 docs/architecture.md              architecture navigation and change routing
@@ -64,6 +64,7 @@ internal/business/
     application/                  local welcome-notification use case
     transport/messagesubscriber/  inbound Integration Message adapter
     notification.go               bounded-context Fx module
+internal/app/                     configuration loading, module selection, start/stop order test
 internal/pkg/
   connectrpc/                     shared HTTP/2 runtime and interceptor
   database/                       shared xorm engine

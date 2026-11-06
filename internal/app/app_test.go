@@ -1,12 +1,10 @@
-package main
+package app
 
 import (
 	"os"
 	"testing"
 
-	"github.com/go-jimu/components/config/loader"
 	"github.com/go-jimu/components/sloghelper"
-	"github.com/go-jimu/template/internal/pkg"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
@@ -34,11 +32,8 @@ func TestDefaultConfigLoadsExpectedValues(t *testing.T) {
 		}
 	})
 
-	var option Option
-	if err = loader.Load(
-		&option,
-		loader.WithConfigurationDirectory(configDirectory, "defaults"),
-	); err != nil {
+	option, err := LoadOption()
+	if err != nil {
 		t.Fatal(err)
 	}
 	if option.Connect.Addr != ":8080" || option.Connect.ShutdownDelay != "5s" {
@@ -78,7 +73,7 @@ func TestApplicationDependencyGraphIsComplete(t *testing.T) {
 		Connect:  connectrpc.Option{},
 	}
 	if err := fx.ValidateApp(
-		application(option, pkg.Module),
+		New(option),
 		fx.NopLogger,
 	); err != nil {
 		t.Fatal(err)

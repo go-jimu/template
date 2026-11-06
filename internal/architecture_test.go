@@ -60,9 +60,18 @@ func TestBusinessPackagesRespectDependencyDirection(t *testing.T) {
 	}
 }
 
+// Intent: the entry points and the composition in internal/app select
+// bounded contexts by their root Fx modules only.
 func TestEntrypointsImportModulesNotBusinessInternals(t *testing.T) {
 	module := readModulePath(t)
-	err := filepath.WalkDir("../cmd", func(path string, entry fs.DirEntry, walkErr error) error {
+	for _, root := range []string{"../cmd", "app"} {
+		checkImportsModulesOnly(t, module, root)
+	}
+}
+
+func checkImportsModulesOnly(t *testing.T, module, root string) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -78,7 +87,7 @@ func TestEntrypointsImportModulesNotBusinessInternals(t *testing.T) {
 			relativeImport := strings.TrimPrefix(imported, businessPrefix)
 			if strings.Count(relativeImport, "/") > 0 {
 				t.Errorf(
-					"%s imports business internal %q; cmd may import only bounded-context root modules",
+					"%s imports business internal %q; entry points and internal/app may import only bounded-context root modules",
 					path,
 					imported,
 				)
