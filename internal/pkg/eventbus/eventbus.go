@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/template/internal/pkg/telemetry"
 	"github.com/samber/oops"
 )
 
@@ -62,8 +63,13 @@ func NewDispatcher(
 		event.WithBufferSize(config.BufferSize),
 		event.WithWorkers(config.Workers),
 		event.WithHandlerTimeout(handlerTimeout),
-		// Handlers log through this logger and name the event themselves.
+		// Handlers log through this logger and name the event themselves, and
+		// continue the trace of the Dispatch caller, so a handler, and what it
+		// publishes, stays on the trace of the request that raised the event.
 		event.WithContextFactory(func(ctx context.Context, _ event.Event) context.Context {
+			if source, ok := event.SourceContext(ctx); ok {
+				ctx = telemetry.ContinueTrace(ctx, source)
+			}
 			return sloghelper.NewContext(ctx, eventLogger)
 		}),
 	)

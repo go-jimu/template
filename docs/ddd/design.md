@@ -148,6 +148,79 @@ interceptor records each request, and the message runtime wraps every
 subscribed handler in `message.Logging` to record each handled message at
 Debug.
 
+## API logging
+
+The shared ConnectRPC interceptor (`internal/pkg/connectrpc`) owns the logs of
+every RPC; a new procedure needs no logging code of its own.
+
+**Access log.** The interceptor writes one `request complete` record per RPC,
+unary or streaming, when it ends. Health checks are not logged: probes are not
+requests.
+
+| Attribute | Value |
+| --- | --- |
+| `trace_id`, `span_id` | the RPC's span; see "Trace context" below |
+| `operation` | the procedure, such as `/user.private.v1.UserService/Get` |
+| `outcome` | `success` or `failed` |
+| `connect_code` | `ok`, or the Connect code sent to the client |
+| `elapsed_ms` | duration in milliseconds |
+| `error` | failures only: the cause behind the Connect error, through `sloghelper.Error`, with its oops context and stack; never the message sent to the client alone |
+
+Its level follows what the outcome means for the service:
+
+| Outcome | Level |
+| --- | --- |
+| success | Info |
+| client-caused: `canceled`, `invalid_argument`, `not_found`, `already_exists`, `permission_denied`, `unauthenticated`, `failed_precondition`, `aborted`, `out_of_range` | Info |
+| transient: `deadline_exceeded`, `resource_exhausted`, `unavailable` | Warn |
+| server fault: any other code, including a recovered panic (`internal`) | Error |
+
+Success is Info, above sloghelper's Debug for success, on purpose: the access
+log is the record of traffic that production keeps. Error alerts therefore
+mean server faults, never client mistakes.
+
+**What handlers log.** Transport, Application, and the layers below do not log
+a request's start or completion, nor an error they return: the access log
+records both. A handler may log a fact the outcome does not show, through
+`sloghelper.FromContext(ctx)` and a `...Context(ctx, ...)` or `LogAttrs` call
+with the request's ctx, so the record names the request: Debug for a
+diagnostic, Info for a business decision worth keeping. A suppressed error is
+logged where it is suppressed (see "Error propagation and logging").
+Attribute names follow `go doc github.com/go-jimu/components/sloghelper`.
+
+**What no log contains.** These never appear in a log attribute, nor in the
+oops context of an error (`oops.With(...)`), which the access log prints:
+
+- request or response messages, and headers such as `Authorization` and
+  `Cookie`;
+- passwords, tokens, keys, and DSNs;
+- personal data, such as an email address, phone number, or name: log the
+  `user_id` instead.
+
+**Trace context.** The trace ID correlates every log of one request, across
+RPCs, Domain Events, Kafka, and services; there is no separate request ID.
+OpenTelemetry (`internal/pkg/telemetry`) carries it as W3C trace context:
+
+- an RPC continues the caller's `traceparent`, or starts a trace, before the
+  interceptor logs it (otelconnect);
+- a Domain Event handler continues the trace of the request that dispatched
+  the event (the eventbus context factory, from `event.SourceContext`);
+- a publish writes `traceparent` into the record headers, and a consumer's
+  handlers continue it (kotel, and contrib's `WithRecordContext`).
+
+The process logger adds `trace_id` and `span_id` to every record logged with
+a ctx that carries a span (`telemetry.LogAttrs`), so code only logs with the
+ctx of its work. Business code starts no spans of its own.
+
+The SDK always creates trace and span IDs, so logs correlate without a
+tracing backend; spans are exported over OTLP/HTTP only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. `OTEL_SERVICE_NAME` and
+`OTEL_TRACES_SAMPLER` follow the OpenTelemetry environment specification.
+
+The server trusts an incoming `traceparent` as the parent span. For external
+traffic the gateway owns that boundary: it starts or replaces the trace
+context of requests from outside the deployment.
+
 ## Runtime composition and lifecycle
 
 Each bounded context exposes an Fx module that owns its constructors and
@@ -183,9 +256,11 @@ order. Fx stops hooks in reverse, so shutdown runs:
    redelivery, or a requeue.
 3. The process exits. The Kafka client closes after the dispatcher, because
    it leaves the consumer group and the dispatcher's handlers publish through
-   it. Connection pools, such as MySQL's, are not closed: closing adds no
-   guarantee to running work, and MySQL rolls back any transaction still open
-   when the process exits.
+   it. The TracerProvider shuts down last, flushing the spans of everything
+   above: the server and the Kafka client take it as a dependency, so it is
+   built before them and stopped after them. Connection pools, such as
+   MySQL's, are not closed: closing adds no guarantee to running work, and
+   MySQL rolls back any transaction still open when the process exits.
 
 Each step can still use everything stopped after it. Fx runs the stop hooks
 one after another on one deadline, `fx.StopTimeout` (30s in `cmd/server`),

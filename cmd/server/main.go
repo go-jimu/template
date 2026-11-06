@@ -14,6 +14,7 @@ import (
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
 	"github.com/go-jimu/template/internal/pkg/messagebus"
+	"github.com/go-jimu/template/internal/pkg/telemetry"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
 )
@@ -47,6 +48,8 @@ func application(option Option) fx.Option {
 }
 
 func main() {
+	// Every log written with the ctx of traced work names its trace and span.
+	sloghelper.Apply(sloghelper.WithHandleFunc(telemetry.LogAttrs))
 	var option Option
 	if err := loader.Load(
 		&option,

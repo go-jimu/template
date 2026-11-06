@@ -14,8 +14,11 @@ import (
 	"github.com/go-jimu/components/ddd/message"
 	"github.com/go-jimu/components/sloghelper"
 	jimukafka "github.com/go-jimu/contrib/message/kafka"
+	"github.com/go-jimu/template/internal/pkg/telemetry"
 	"github.com/samber/oops"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kotel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
 
@@ -123,11 +126,16 @@ type consumerRuntime struct {
 
 // NewKafka creates the go-jimu Kafka publisher and consumer. It registers the
 // client ping and close; consumption starts through ConsumeHook.
+//
+// The client carries trace context in the record headers (kotel): a publish
+// injects the publisher's traceparent, and the consumer's handlers continue
+// the producer's trace; see "Trace context" in docs/ddd/design.md.
 func NewKafka(
 	lifecycle fx.Lifecycle,
 	shutdowner fx.Shutdowner,
 	option Option,
 	logger *slog.Logger,
+	tracerProvider trace.TracerProvider,
 ) (KafkaOut, error) {
 	handlerTimeout, err := option.handlerTimeout()
 	if err != nil {
@@ -144,6 +152,7 @@ func NewKafka(
 		kgo.BlockRebalanceOnPoll(),
 		kgo.RebalanceTimeout(rebalanceTimeout),
 		kgo.WithLogger(jimukafka.KgoLogger(kafkaLogger, kgo.LogLevelInfo)),
+		kgo.WithHooks(tracingHooks(tracerProvider, option)...),
 	)
 	if err != nil {
 		return KafkaOut{}, oops.With("operation", "kafka.client.create").Wrap(err)
@@ -157,6 +166,7 @@ func NewKafka(
 		jimukafka.WithHandlerTimeout(handlerTimeout),
 		jimukafka.WithMaxPollRecords(option.MaxPollRecords),
 		jimukafka.WithLogger(kafkaLogger),
+		jimukafka.WithRecordContext(continueRecordTrace),
 	)
 	if err != nil {
 		client.Close()
@@ -192,6 +202,24 @@ func NewKafka(
 		PayloadRegistry: registry,
 		ConsumeHook:     ConsumeHook{fx.Hook{OnStart: runtime.start, OnStop: runtime.stop}},
 	}, nil
+}
+
+// tracingHooks are the kgo hooks that carry trace context in record headers:
+// a publish injects traceparent, and a fetched record gets the producer's
+// trace on record.Context.
+func tracingHooks(tracerProvider trace.TracerProvider, option Option) []kgo.Hook {
+	return kotel.NewKotel(kotel.WithTracer(kotel.NewTracer(
+		kotel.TracerProvider(tracerProvider),
+		kotel.TracerPropagator(telemetry.Propagator),
+		kotel.ClientID(option.ClientID),
+		kotel.ConsumerGroup(option.ConsumerGroup),
+	))).Hooks()
+}
+
+// continueRecordTrace makes a record's handlers continue the trace kotel
+// extracted from its headers onto record.Context.
+func continueRecordTrace(ctx context.Context, record *kgo.Record) context.Context {
+	return telemetry.ContinueTrace(ctx, record.Context)
 }
 
 func failurePolicy(name string) jimukafka.FailurePolicy {

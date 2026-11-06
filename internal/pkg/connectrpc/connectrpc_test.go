@@ -14,7 +14,11 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/grpchealth/v2"
+	"github.com/go-jimu/components/sloghelper"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
+	"github.com/go-jimu/template/internal/pkg/telemetry"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -31,6 +35,7 @@ func startServer(t *testing.T, register func(sharedconnectrpc.Server)) (*fxtest.
 			sharedconnectrpc.Option{Addr: "127.0.0.1:0"},
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
+		fx.Provide(func() trace.TracerProvider { return sdktrace.NewTracerProvider() }),
 		fx.Provide(sharedconnectrpc.NewServer),
 		fx.Invoke(func(lifecycle fx.Lifecycle, hook sharedconnectrpc.ServeHook) {
 			lifecycle.Append(hook.Hook)
@@ -190,12 +195,15 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// Intent: every RPC runs through the shared interceptor, which logs it under
-// the caller's X-Request-ID, so a request is traceable across services.
+// Intent: every RPC runs through the shared interceptor inside a span that
+// continues the caller's traceparent, so its access log carries the caller's
+// trace ID and one trace spans services.
 func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	var logs syncBuffer
+	logger := slog.New(sloghelper.NewHandler(slog.NewJSONHandler(&logs, nil),
+		sloghelper.WithHandleFunc(telemetry.LogAttrs)))
 	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{Addr: "127.0.0.1:0"},
-		slog.New(slog.NewJSONHandler(&logs, nil)))
+		logger, sdktrace.NewTracerProvider())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +214,8 @@ func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	}
 	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
 		url := "http://" + out.Server.Address() + procedure
-		if got := send(t, http.MethodPost, url, http.Header{"X-Request-Id": {"caller-request"}}); got != http.StatusOK {
+		header := http.Header{"Traceparent": {"00-" + callerTraceID + "-00f067aa0ba902b7-01"}}
+		if got := send(t, http.MethodPost, url, header); got != http.StatusOK {
 			t.Fatalf("POST %s = %d, want 200", url, got)
 		}
 	}
@@ -215,12 +224,21 @@ func TestServerRunsTheSharedInterceptor(t *testing.T) {
 	}
 
 	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
-		want := `"request_id":"caller-request","operation":"` + procedure + `"`
-		if !strings.Contains(logs.String(), want) {
-			t.Errorf("logs do not contain %s:\n%s", want, logs.String())
+		var line string
+		for _, candidate := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
+			if strings.Contains(candidate, `"msg":"request complete"`) &&
+				strings.Contains(candidate, `"operation":"`+procedure+`"`) {
+				line = candidate
+			}
+		}
+		if !strings.Contains(line, `"trace_id":"`+callerTraceID+`"`) || !strings.Contains(line, `"span_id":"`) {
+			t.Errorf("access log of %s = %s, want trace_id %s and a span_id:\n%s", procedure, line, callerTraceID, logs.String())
 		}
 	}
 }
+
+// callerTraceID is the trace ID a caller sends in traceparent.
+const callerTraceID = "4bf92f3577b34da6a3ce929d0e0e4736"
 
 // Intent: stopping takes the listener down.
 func TestServerShutsDown(t *testing.T) {
@@ -241,7 +259,7 @@ func startDirect(t *testing.T, delay string) (sharedconnectrpc.ServeOut, func(co
 	t.Helper()
 	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{
 		Addr: "127.0.0.1:0", ShutdownDelay: delay,
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), sdktrace.NewTracerProvider())
 	if err != nil {
 		t.Fatal(err)
 	}
