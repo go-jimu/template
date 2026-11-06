@@ -35,12 +35,9 @@ var Module = fx.Module(
 	fx.Invoke(func(
 		handler userv1connect.UserServiceHandler,
 		profiles userpublicv1connect.ProfileServiceHandler,
-		private sharedconnectrpc.PrivateServer,
-		public sharedconnectrpc.PublicServer,
+		server sharedconnectrpc.Server,
 	) {
-		// private/v1 serves this deployment; public/v1 serves web and app
-		// clients on its own listener, the only one to expose.
-		userv1connect.RegisterUserServiceHandler(private.Registry(), handler)
-		userpublicv1connect.RegisterProfileServiceHandler(public.Registry(), profiles)
+		userv1connect.RegisterUserServiceHandler(server.Registry(), handler)
+		userpublicv1connect.RegisterProfileServiceHandler(server.Registry(), profiles)
 	}),
 )

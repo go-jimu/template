@@ -1,0 +1,94 @@
+# Deployment for the template server. Its configuration is the defaults.yml in
+# the Secret named template-config, mounted at /app/configs/server over the one
+# baked into the image.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: template
+  labels:
+    app.kubernetes.io/name: template
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: template
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: template
+    spec:
+      # The server needs no Kubernetes API access.
+      automountServiceAccountToken: false
+      # Longer than the process's 30s stop timeout. On SIGTERM the server
+      # itself reports NOT_SERVING and keeps serving for
+      # CONNECT_SHUTDOWN_DELAY, so no preStop hook is needed.
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: template
+      containers:
+        - name: server
+          image: ghcr.io/go-jimu/template:latest
+          ports:
+            - name: rpc
+              containerPort: 8080
+          env:
+            # Lets the Go runtime collect garbage before the memory limit is
+            # reached.
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+          # grpc.health.v1.Health: the empty service is readiness, "liveness"
+          # reports that the process is alive.
+          startupProbe:
+            grpc:
+              port: 8080
+              service: liveness
+            periodSeconds: 2
+            failureThreshold: 15
+          livenessProbe:
+            grpc:
+              port: 8080
+              service: liveness
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            grpc:
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs/server
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          secret:
+            secretName: template-config

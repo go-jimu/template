@@ -13,7 +13,6 @@ import (
 
 func TestArchitectureAuthorityDocumentsExist(t *testing.T) {
 	for _, path := range []string{
-		"../AGENTS.md",
 		"../docs/architecture.md",
 		"../docs/ddd/model.md",
 		"../docs/ddd/design.md",

@@ -14,9 +14,7 @@ option go_package = "github.com/go-jimu/template/gen/user/public/v1;userpublicv1
 // the wire rules.
 //
 // The contract exposes only what any client may see: a profile has no email
-// or credential. It carries no authentication because profiles are public;
-// an RPC that reads or changes a caller's own data adds an authentication
-// interceptor to the public server.
+// or credential. It carries no authentication because profiles are public.
 service ProfileService {
   // GetProfile returns one user's public profile. It has no side effects, so
   // Connect clients may call it with HTTP GET, which caches and CDNs can

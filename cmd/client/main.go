@@ -42,7 +42,7 @@ func main() {
 	// effects, so it goes out as a cacheable HTTP GET.
 	profiles := userpublicv1connect.NewProfileServiceClient(connect.NewClient(connecthttp.NewTransport(
 		http.DefaultClient,
-		"http://localhost:8081", // the public port
+		"http://localhost:8080",
 		connecthttp.WithHTTPGet(),
 	)))
 	profile, err := profiles.GetProfile(

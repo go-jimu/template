@@ -1,0 +1,32 @@
+# Exposes the public contracts through the gateway. This route is the
+# allowlist: add one match per public service (proto/<context>/public), and
+# every procedure without one, private contracts and health checks included,
+# stays inside the cluster.
+#
+# External clients call the public contracts as plain HTTP through the
+# Connect protocol: POST with a JSON body, or GET for a method without side
+# effects, at /<package>.<Service>/<Method>. That is HTTPRoute traffic; a
+# GRPCRoute matches native gRPC only, which is not exposed.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: template-public
+  labels:
+    app.kubernetes.io/name: template
+spec:
+  # The Gateway's listener must allow routes from this namespace.
+  parentRefs:
+    - name: public
+      namespace: envoy-gateway-system
+  hostnames:
+    - api.example.com
+  rules:
+    - matches:
+        # PathPrefix matches whole path segments, so this admits
+        # /user.public.v1.ProfileService/GetProfile and no other service.
+        - path:
+            type: PathPrefix
+            value: /user.public.v1.ProfileService
+      backendRefs:
+        - name: template
+          port: 8080

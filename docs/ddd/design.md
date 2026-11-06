@@ -59,8 +59,8 @@ the client can act on carries its error's message, and any other error becomes
 `internal` with a fixed message. The original error stays attached as the
 local cause for `errors.Is` and the interceptor's log, and is never sent.
 
-Two RPC contracts serve two audiences on separate listeners, so exposing the
-public port never exposes a private contract:
+Two RPC contracts serve two audiences. Public and private name the contract:
+its audience, compatibility promise, and fields.
 
 - `user.private.v1.UserService` serves this deployment: it may expose
   internal fields such as email and change with the deployment.
@@ -69,17 +69,18 @@ public port never exposes a private contract:
   through the same `query.Users`, and only grows backward compatibly; a
   breaking change becomes `user.public.v2` alongside v1. `GetProfile` is
   marked `NO_SIDE_EFFECTS`, so clients may call it with a cacheable HTTP GET.
-  Profiles are public, so it carries no authentication; a public RPC over a
-  caller's own data adds an authentication interceptor to the public server,
-  which runs for every public procedure and checks those that need it by
-  `spec.Procedure`.
+  Profiles are public, so it carries no authentication.
 
-`connect.addr` serves the private contracts and `connect.public-addr` the
-public ones; only the public port is exposed outside the deployment.
+One listener, `connect.addr`, serves both contracts. Exposure is a deployment
+decision: the gateway authenticates external callers and routes only the
+`*.public.v*` services to the server, so every other procedure stays inside
+the deployment. Caller identity between services and per-procedure access
+policy belong to the platform, such as a service mesh's authorization policy;
+a service authorizes access to its own resources in the Application.
 
-The shared ConnectRPC interceptor runs on both servers. It creates
-request-scoped logging context, recovers panics, and owns the single outer
-error log for an RPC request, unary or streaming.
+The shared ConnectRPC interceptor runs on every RPC except health checks. It
+creates request-scoped logging context, recovers panics, and owns the single
+outer error log for an RPC request, unary or streaming.
 
 ## Domain Events and Integration Messages
 
@@ -160,12 +161,12 @@ xorm engine, and messagebus pings and closes the Kafka client.
 
 `pkg.Lifecycle` orders the runtimes that hand work to each other. It is listed
 after every bounded-context module and registers the dispatcher drain, the
-Kafka consumer, and the ConnectRPC servers, in that order. Fx stops hooks in
+Kafka consumer, and the ConnectRPC server, in that order. Fx stops hooks in
 reverse, so shutdown runs:
 
-1. both servers turn `/readyz` unavailable, keep serving for
-   `connect.shutdown-delay` so load balancers stop routing to them, then close
-   their listeners and drain in-flight requests;
+1. the server reports `NOT_SERVING` for readiness, keeps serving for
+   `connect.shutdown-delay` so load balancers stop routing to it, then closes
+   its listener and drains in-flight requests;
 2. the consumer stops fetching and finishes its current message;
 3. the dispatcher handles every accepted Domain Event; and
 4. the Kafka client and the database close.

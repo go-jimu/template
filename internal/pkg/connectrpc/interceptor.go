@@ -13,11 +13,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/grpchealth/v2"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/samber/oops"
 )
 
 const headerRequestID = "X-Request-ID"
+
+var healthProcedurePrefix = "/" + grpchealth.HealthV1ServiceName + "/"
 
 // Carrier creates request-scoped loggers and one completion log per RPC: Info
 // for success and for failures the client caused, Warn for transient
@@ -28,16 +31,20 @@ type Carrier struct {
 	prefix  string
 }
 
-// NewCarrier creates the interceptor shared by both ConnectRPC servers.
+// NewCarrier creates the interceptor every RPC on the ConnectRPC server runs through.
 func NewCarrier(logger *slog.Logger) *Carrier {
 	return &Carrier{logger: logger, prefix: requestIDPrefix()}
 }
 
 // Intercept returns the server interceptor. It wraps the whole call, unary
-// or streaming, and recovers a handler panic as CodeInternal.
+// or streaming, and recovers a handler panic as CodeInternal. Health checks
+// pass through unlogged: probes are not requests.
 func (c *Carrier) Intercept() connect.ServerInterceptor {
 	return func(next connect.ServerFunc) connect.ServerFunc {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) (err error) {
+			if strings.HasPrefix(spec.Procedure, healthProcedurePrefix) {
+				return next(ctx, spec, stream)
+			}
 			startedAt := time.Now()
 			var requestID string
 			if info, ok := connect.CallInfoForServerContext(ctx); ok {

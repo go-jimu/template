@@ -1,0 +1,18 @@
+# One port serves every contract. appProtocol kubernetes.io/h2c makes the
+# gateway reach the server over HTTP/2 without TLS. Plain HTTP clients do not
+# need it; it lets gRPC pass through the gateway without changing the Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: template
+  labels:
+    app.kubernetes.io/name: template
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: template
+  ports:
+    - name: rpc
+      port: 8080
+      targetPort: rpc
+      appProtocol: kubernetes.io/h2c

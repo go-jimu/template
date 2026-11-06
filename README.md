@@ -11,15 +11,14 @@ framework glue.
 
 ## Read the project quickly
 
-For an AI coding agent, start with [AGENTS.md](AGENTS.md). The architecture
-sources then have one responsibility each:
+The architecture sources have one responsibility each:
 
 1. [docs/ddd/model.md](docs/ddd/model.md) — business terms, authority,
    invariants, scenarios, and context relationships.
 2. [docs/ddd/design.md](docs/ddd/design.md) — Aggregate, Repository, CQRS,
    event/message, error, and runtime decisions.
-3. [docs/architecture.md](docs/architecture.md) — dependency direction and a
-   table routing each kind of change to its owner.
+3. [docs/architecture.md](docs/architecture.md) — repository conventions and
+   a table routing each kind of change to its owner.
 
 For the current state, the model owns business meaning and the design owns
 tactical choices. Code and tests show how those decisions are implemented.
@@ -165,11 +164,16 @@ make server
 make client
 ~~~
 
-The server listens on two ports, both speaking Connect, gRPC, and gRPC-Web:
-`:8080` serves the `private/v1` contracts inside the deployment, and `:8081`
-serves the `public/v1` contracts to web and app clients. Expose only `:8081`.
-On both, `GET /healthz` reports liveness and `GET /readyz` reports readiness,
-turning unavailable once shutdown begins.
+The server listens on `:8080` and serves every contract over Connect, gRPC,
+and gRPC-Web. `public/v1` and `private/v1` differ in contract, not port: the
+gateway's routes decide which leave the deployment (see "Inbound protocol
+boundary" in [design.md](docs/ddd/design.md)).
+
+Health checks use gRPC's standard `grpc.health.v1.Health`: the empty service
+name reports readiness, which turns `NOT_SERVING` once shutdown begins, and
+`liveness` reports that the process is alive.
+[deployments/kubernetes/deployment.yaml](deployments/kubernetes/deployment.yaml)
+wires both into Kubernetes gRPC probes.
 
 ## API
 
@@ -191,7 +195,7 @@ The public contract stays backward compatible, and `GetProfile` has no side
 effects, so a browser can call it with a plain GET:
 
 ~~~bash
-curl -G http://localhost:8081/user.public.v1.ProfileService/GetProfile \
+curl -G http://localhost:8080/user.public.v1.ProfileService/GetProfile \
   --data-urlencode 'encoding=json' \
   --data-urlencode 'message={"id":"<user id>"}'
 ~~~
@@ -212,13 +216,12 @@ kafka:
   handler-timeout: ${KAFKA_HANDLER_TIMEOUT:5s}
   max-poll-records: 10                           # × handler-timeout < 60s
 connect:
-  addr: ${CONNECT_ADDR::8080}                # private/v1, inside the deployment
-  public-addr: ${CONNECT_PUBLIC_ADDR::8081}  # public/v1, the only port to expose
-  shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s} # keep serving after /readyz turns 503
+  addr: ${CONNECT_ADDR::8080}
+  shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s} # keep serving after readiness turns NOT_SERVING
 ~~~
 
-On SIGTERM the process shuts down gracefully within 30s: `/readyz` turns 503
-and both ports keep serving for `shutdown-delay`, then requests drain, the
+On SIGTERM the process shuts down gracefully within 30s: readiness turns
+`NOT_SERVING` and the server keeps serving for `shutdown-delay`, then requests drain, the
 Kafka consumer finishes its current message, and Domain Events drain before
 the clients close. Give the orchestrator a longer kill grace period, such as
 Kubernetes `terminationGracePeriodSeconds: 40`.

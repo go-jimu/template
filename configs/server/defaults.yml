@@ -31,10 +31,9 @@ mysql:
   max_idle_time: ${MYSQL_MAX_IDLE_TIME:5m}
   max_lifetime: ${MYSQL_MAX_LIFETIME:30m}
 connect:
-  # private/v1 contracts; keep this port inside the deployment.
+  # Serves every contract; the gateway's routes decide which leave the
+  # deployment.
   addr: "${CONNECT_ADDR::8080}"
-  # public/v1 contracts for web and app clients; the only port to expose.
-  public-addr: "${CONNECT_PUBLIC_ADDR::8081}"
-  # On shutdown both ports report /readyz unavailable and keep serving this
+  # On shutdown the server reports NOT_SERVING for readiness and keeps serving this
   # long before closing, so load balancers stop routing first.
   shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s}

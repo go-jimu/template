@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	connectrpc.com/connect/v2 v2.0.2
+	connectrpc.com/grpchealth/v2 v2.0.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-jimu/components v0.12.0
 	github.com/go-jimu/contrib/message/kafka v0.5.1
@@ -16,7 +17,6 @@ require (
 	github.com/twmb/franz-go v1.22.2
 	go.uber.org/fx v1.23.0
 	golang.org/x/crypto v0.54.0
-	golang.org/x/net v0.56.0
 	google.golang.org/protobuf v1.36.11
 	xorm.io/xorm v1.3.9
 )
