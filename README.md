@@ -230,7 +230,8 @@ grace period, such as Kubernetes `terminationGracePeriodSeconds: 40`.
 
 Each runtime component validates its own Option/Config in its constructor.
 `main` only loads and supplies aggregate configuration. Never log a password,
-token, or full DSN.
+token, full DSN, request payload, or personal data; "API logging" in
+`docs/ddd/design.md` states what each RPC logs and what a handler may add.
 
 ## Error handling
 

@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/grpchealth/v2"
 	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/template/internal/pkg/requestid"
 	"github.com/samber/oops"
 )
 
@@ -22,9 +23,10 @@ const headerRequestID = "X-Request-ID"
 
 var healthProcedurePrefix = "/" + grpchealth.HealthV1ServiceName + "/"
 
-// Carrier creates request-scoped loggers and one completion log per RPC: Info
-// for success and for failures the client caused, Warn for transient
-// failures, Error for server faults (see failureLevel).
+// Carrier gives every RPC its request ID and logger and writes its one
+// completion log, the access log of the service. "API logging" in
+// docs/ddd/design.md states its attributes and levels, what handlers log, and
+// what no log may contain.
 type Carrier struct {
 	logger  *slog.Logger
 	counter uint64
@@ -53,8 +55,11 @@ func (c *Carrier) Intercept() connect.ServerInterceptor {
 			if requestID == "" {
 				requestID = fmt.Sprintf("%s-%06d", c.prefix, atomic.AddUint64(&c.counter, 1))
 			}
-			logger := c.logger.With(slog.String("request_id", requestID))
-			ctx = sloghelper.NewContext(ctx, logger)
+			// The ID travels in ctx, not on the logger, so the work this request
+			// starts elsewhere, such as Domain Event handlers, logs it too.
+			ctx = requestid.NewContext(ctx, requestID)
+			ctx = sloghelper.NewContext(ctx, c.logger)
+			logger := c.logger
 
 			func() {
 				defer func() {

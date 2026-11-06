@@ -148,6 +148,70 @@ interceptor records each request, and the message runtime wraps every
 subscribed handler in `message.Logging` to record each handled message at
 Debug.
 
+## API logging
+
+The shared ConnectRPC interceptor (`internal/pkg/connectrpc`) owns the logs of
+every RPC; a new procedure needs no logging code of its own.
+
+**Access log.** The interceptor writes one `request complete` record per RPC,
+unary or streaming, when it ends. Health checks are not logged: probes are not
+requests.
+
+| Attribute | Value |
+| --- | --- |
+| `request_id` | the request's ID; see "Request ID" below |
+| `operation` | the procedure, such as `/user.private.v1.UserService/Get` |
+| `outcome` | `success` or `failed` |
+| `connect_code` | `ok`, or the Connect code sent to the client |
+| `elapsed_ms` | duration in milliseconds |
+| `error` | failures only: the cause behind the Connect error, through `sloghelper.Error`, with its oops context and stack; never the message sent to the client alone |
+
+Its level follows what the outcome means for the service:
+
+| Outcome | Level |
+| --- | --- |
+| success | Info |
+| client-caused: `canceled`, `invalid_argument`, `not_found`, `already_exists`, `permission_denied`, `unauthenticated`, `failed_precondition`, `aborted`, `out_of_range` | Info |
+| transient: `deadline_exceeded`, `resource_exhausted`, `unavailable` | Warn |
+| server fault: any other code, including a recovered panic (`internal`) | Error |
+
+Success is Info, above sloghelper's Debug for success, on purpose: the access
+log is the record of traffic that production keeps. Error alerts therefore
+mean server faults, never client mistakes.
+
+**What handlers log.** Transport, Application, and the layers below do not log
+a request's start or completion, nor an error they return: the access log
+records both. A handler may log a fact the outcome does not show, through
+`sloghelper.FromContext(ctx)` and a `...Context(ctx, ...)` or `LogAttrs` call
+with the request's ctx, so the record names the request: Debug for a
+diagnostic, Info for a business decision worth keeping. A suppressed error is
+logged where it is suppressed (see "Error propagation and logging").
+Attribute names follow `go doc github.com/go-jimu/components/sloghelper`.
+
+**What no log contains.** These never appear in a log attribute, nor in the
+oops context of an error (`oops.With(...)`), which the access log prints:
+
+- request or response messages, and headers such as `Authorization` and
+  `Cookie`;
+- passwords, tokens, keys, and DSNs;
+- personal data, such as an email address, phone number, or name: log the
+  `user_id` instead.
+
+**Request ID.** The interceptor takes the request ID from `X-Request-ID`, or
+generates one (`<host>/<random>-<sequence>`) when it is missing, and puts it in
+the request's ctx (`internal/pkg/requestid`). The process logger adds
+`request_id` to every record logged with a ctx that carries it, so the code
+never adds it by hand. The Domain Event dispatcher copies it onto its
+handlers' ctx, so a handler's logs, and the dispatcher's own logs about the
+event, name the request that raised it. Integration Messages do not carry it
+yet: a consumer's logs have no `request_id`.
+
+For external traffic the gateway owns the ID: it generates it, replaces one an
+external client sent, and writes it into the response when clients need it.
+The service accepts the header as it comes, does not echo it, and does not
+validate it: the JSON log handler escapes it, and the server's 16 KiB header
+limit bounds its size.
+
 ## Runtime composition and lifecycle
 
 Each bounded context exposes an Fx module that owns its constructors and
