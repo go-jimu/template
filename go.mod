@@ -7,7 +7,7 @@ require (
 	connectrpc.com/grpchealth/v2 v2.0.0
 	connectrpc.com/otelconnect v0.12.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/go-jimu/components v0.12.5
+	github.com/go-jimu/components v0.12.9-0.20261106171743-f33f7948ba10
 	github.com/go-jimu/contrib/message/kafka v0.5.3
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-sql-driver/mysql v1.8.1
@@ -48,6 +48,8 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
+	github.com/go-jimu/contrib/event/outbox/xorm v0.5.7 // indirect
+	github.com/go-jimu/contrib/transaction/xorm v0.5.5 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

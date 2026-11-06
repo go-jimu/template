@@ -101,7 +101,7 @@ func newUserClient(
 	repository query.Repository,
 ) (userv1connect.UserServiceClient, func()) {
 	t.Helper()
-	service := userconnectrpc.NewHandler(application.NewApplication(nil, nil), query.NewUsers(repository))
+	service := userconnectrpc.NewHandler(application.NewApplication(nil, nil, nil), query.NewUsers(repository))
 	registry := connect.NewServer()
 	userv1connect.RegisterUserServiceHandler(registry, service)
 	mux := http.NewServeMux()

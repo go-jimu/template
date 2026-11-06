@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"errors"
+	jimuxorm "github.com/go-jimu/contrib/transaction/xorm"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -68,7 +69,11 @@ func newMockRepository(t *testing.T) (domain.Repository, sqlmock.Sqlmock) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewUserRepository(engine), mock
+	db, err := jimuxorm.New(engine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewUserRepository(db), mock
 }
 
 func rehydratedUser(t *testing.T, version int) *domain.User {

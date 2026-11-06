@@ -2,9 +2,25 @@ logger:
   level: info
   output: console
 eventbus:
+  # buffer-size, workers, and handler-timeout run the best-effort handlers.
   buffer-size: 1024
   workers: 4
   handler-timeout: 10s
+  # The Relay of the must-run handlers. Its workers hold MySQL connections, so
+  # mysql.max_open_conns leaves room for them beside request traffic.
+  outbox:
+    # Names this instance in record leases; empty means the hostname, which
+    # is the pod name in Kubernetes.
+    owner: ${OUTBOX_OWNER:}
+    # Above the slowest record's run time, or a second Relay reruns it.
+    lease: 1m
+    poll-interval: 5s
+    workers: 4
+    batch-size: 32
+    min-backoff: 1s
+    max-backoff: 5m
+    # How long completed records stay before the Relay purges them.
+    retention: 168h
 kafka:
   brokers:
     - ${KAFKA_BROKER:localhost:9092}

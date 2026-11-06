@@ -32,9 +32,11 @@ tactical choices. Code and tests show how those decisions are implemented.
 - A dedicated ConnectRPC Transport layer that only performs inbound mapping.
 - Domain Events for same-context facts and Integration Messages for
   cross-context published language.
+- A transactional outbox: registration commits the User with the pending
+  publication of `UserRegisteredV1`, which is then published at least once.
 - A go-jimu Kafka runtime for Integration Message publication and consumption.
 - Uber Fx module composition with an explicit shutdown order: server,
-  consumer, Domain Event drain, then shared clients.
+  consumer, Outbox and Domain Event drain, then shared clients.
 - Keyset pagination over UUIDv7 IDs with an opaque page token.
 - `oops` error propagation and one outer error log through
   `sloghelper.Error`.
@@ -67,7 +69,7 @@ internal/business/
 internal/pkg/
   connectrpc/                     shared HTTP/2 runtime and interceptor
   database/                       shared xorm engine
-  eventbus/                       in-process Domain Event dispatcher
+  eventbus/                       Outbox and in-process Domain Event dispatchers
   messagebus/                     go-jimu Kafka runtime
   telemetry/                      OpenTelemetry tracing and trace IDs in logs
   lifecycle.go                    start and shutdown order of the runtimes
@@ -115,17 +117,20 @@ A write use case changes one Aggregate:
 Connect request
   -> Transport
   -> Application.CreateUser / ChangePassword
-  -> Repository.Get (when required)
-  -> Aggregate behavior
-  -> Repository.Save
-  -> drain Domain Events
-  -> Event Dispatcher (DispatchAll)
+  -> Transactor.Within
+       -> Repository.Get (when required)
+       -> Aggregate behavior
+       -> Repository.Save
+       -> drain Domain Events
+       -> Outbox (DispatchAll): one record per must-run handler
+  -> commit; the Relay runs the records
 ~~~
 
 Cross-context publication uses a separate contract:
 
 ~~~text
 UserCreated (User Domain Event)
+  -> outbox record, run by the Relay
   -> UserCreatedHandler (Application)
   -> UserRegisteredV1 (Integration Message)
   -> go-jimu Kafka runtime
@@ -135,7 +140,8 @@ UserCreated (User Domain Event)
 
 `UserCreated` and `UserRegisteredV1` are intentionally different. The Kafka
 `failure-policy` is `retry` (in place, after a backoff, dropped after 3
-attempts) or `drop`; the example does not implement outbox, idempotency, a
+attempts) or `drop`. Delivery is at least once, under a message ID stable
+across retries; the example does not implement idempotency storage, a
 dead-letter store, or durable notification state.
 
 ## Getting started
@@ -151,7 +157,7 @@ Requirements:
 Create the schema:
 
 ~~~bash
-mysql -u root -p jimu < migrations/001_create_user_account.sql
+cat migrations/*.sql | mysql -u root -p jimu
 ~~~
 
 Ensure Kafka is reachable at `localhost:9092` and create the
@@ -216,6 +222,9 @@ kafka:
   failure-policy: ${KAFKA_FAILURE_POLICY:retry}  # or drop
   handler-timeout: ${KAFKA_HANDLER_TIMEOUT:5s}
   max-poll-records: 10                           # × handler-timeout < 60s
+eventbus:
+  outbox:
+    owner: ${OUTBOX_OWNER:}                      # empty: the hostname (pod name)
 connect:
   addr: ${CONNECT_ADDR::8080}
   shutdown-delay: ${CONNECT_SHUTDOWN_DELAY:5s} # keep serving after readiness turns NOT_SERVING
@@ -224,7 +233,9 @@ connect:
 On SIGTERM the process shuts down gracefully within 30s: readiness turns
 `NOT_SERVING` and the server keeps serving for `shutdown-delay`, then requests
 drain and the Kafka consumer lets its running handlers finish and commit;
-then Domain Events drain, follow-ups included, before the Kafka client closes.
+then the Outbox's Relay finishes its running records and best-effort Domain
+Events drain, follow-ups included, before the Kafka client closes. A record
+left unfinished is run by the next instance.
 Database connections are not closed. Give the orchestrator a longer kill
 grace period, such as Kubernetes `terminationGracePeriodSeconds: 40`.
 `docs/ddd/design.md` explains the order and the budget.
@@ -304,8 +315,8 @@ and rejects outward or cross-context dependencies.
 
 Repository SQL tests use a test-only SQL driver for optimistic-lock shape.
 `make integration` applies `migrations/` to MySQL in Docker through
-testcontainers and covers the repositories, keyset paging, and the list query
-plan; CI runs it on every pull request. Kafka suites remain
+testcontainers and covers the repositories, keyset paging, the list query
+plan, and registration through the Outbox; CI runs it on every pull request. Kafka suites remain
 environment-specific.
 
 ## License

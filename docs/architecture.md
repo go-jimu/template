@@ -17,7 +17,7 @@ SQL or a repository changed.
 - The example implements exactly what `model.md` describes. Email uniqueness,
   account activation, a deletion lifecycle (the `deleted_at` column is
   technical), a Notification Aggregate, a real notification provider, task
-  processors, outbox, a dead-letter store, and idempotency storage arrive only
+  processors, a dead-letter store, and idempotency storage arrive only
   when the user asks.
 
 ## Change routing
@@ -75,8 +75,10 @@ collaborate through Integration Messages.
 - One write-side `Application` per context; every write use case is a method
   on it, with its Command in the same file. Split files by business
   responsibility (such as `registration.go`) once there is more than one.
-- A write use case saves the Aggregate, then drains its Domain Events and
-  dispatches them with one `DispatchAll`.
+- A write use case runs in `Within` of the `transaction.Transactor`: it saves
+  the Aggregate, then drains its Domain Events, dispatches them with one
+  `DispatchAll`, and returns its error, so the events commit with the
+  Aggregate.
 - Reads are query objects in `application/query`, one per read model (such as
   `query.Users`), reading the QueryRepository without loading Aggregates.
   Lists page by keyset cursor.
@@ -85,6 +87,11 @@ collaborate through Integration Messages.
   boundary: it translates a selected Domain Event into its own Integration
   Message type for `message.Publisher` (`UserCreated` becomes
   `UserRegisteredV1`).
+- A handler whose effect must not be lost, such as a publication, is a
+  must-run `outbox.Handler`: the context's Fx module registers its event
+  types with `outbox.Register` and subscribes it to the Outbox. Any other is
+  a best-effort `event.Handler` on the `event.Subscriber`. "Consistency and
+  reliability" in `docs/ddd/design.md` says how each kind runs.
 
 ### Transport
 
@@ -98,6 +105,8 @@ collaborate through Integration Messages.
 
 ### Infrastructure
 
+- A Repository takes its session from `jimuxorm.DB.Session(ctx)`, so it
+  writes in the use case's transaction.
 - xorm Data Objects are separate types. Conversion is explicit in
   `infrastructure/convert.go` through exported fields, copying slices, with no
   `Restore`/`Rehydrate` hook or reflection.
@@ -132,6 +141,9 @@ collaborate through Integration Messages.
 - Public Go identifiers have comments.
 - Adapters and Repository implementations carry compile-time interface
   assertions.
+- A Domain Event a must-run handler listens to has `json` tags: the Outbox
+  stores it, so evolve it compatibly ("Events" in `go doc
+  github.com/go-jimu/components/ddd/event/outbox`).
 - A migration starts with a comment stating its intent, its compatibility with
   running code, and how to reverse it. Applied migrations are immutable; a
   change is the next number.

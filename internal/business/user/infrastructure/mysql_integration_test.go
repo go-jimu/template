@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	jimuxorm "github.com/go-jimu/contrib/transaction/xorm"
 	"github.com/go-jimu/template/internal/business/user/application/query"
 	"github.com/go-jimu/template/internal/business/user/domain"
 	_ "github.com/go-sql-driver/mysql"
@@ -26,7 +27,10 @@ func newMySQLEngine(t *testing.T) *xorm.Engine {
 		mysql.WithDatabase("jimu"),
 		mysql.WithUsername("jimu"),
 		mysql.WithPassword("jimu"),
-		mysql.WithScripts("../../../../migrations/001_create_user_account.sql"),
+		mysql.WithScripts(
+			"../../../../migrations/001_create_user_account.sql",
+			"../../../../migrations/002_create_outbox_records.sql",
+		),
 	)
 	testcontainers.CleanupContainer(t, container)
 	if err != nil {
@@ -46,7 +50,11 @@ func newMySQLEngine(t *testing.T) *xorm.Engine {
 
 func TestMySQL(t *testing.T) {
 	engine := newMySQLEngine(t)
-	repository := NewUserRepository(engine)
+	db, err := jimuxorm.New(engine)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := NewUserRepository(db)
 	queries := NewUserQueryRepository(engine)
 
 	t.Run("repository round-trips and locks optimistically", func(t *testing.T) {

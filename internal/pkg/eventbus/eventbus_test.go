@@ -33,19 +33,15 @@ func (h *testHandler) Handle(context.Context, event.Event) {
 }
 
 func TestDispatcherRejectsEventsAfterFxStop(t *testing.T) {
-	var dispatcher event.Dispatcher
+	var dispatcher *event.InMemoryDispatcher
 	app := fxtest.New(
 		t,
 		fx.Supply(
-			eventbus.Config{
-				BufferSize:     1,
-				Workers:        1,
-				HandlerTimeout: "1s",
-			},
+			validConfig(),
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
-		fx.Provide(eventbus.NewDispatcher),
-		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+		fx.Provide(eventbus.NewBestEffort),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher *event.InMemoryDispatcher) {
 			lifecycle.Append(fx.StopHook(dispatcher.Close))
 		}),
 		fx.Populate(&dispatcher),
@@ -59,20 +55,16 @@ func TestDispatcherRejectsEventsAfterFxStop(t *testing.T) {
 }
 
 func TestDispatcherDrainsAcceptedEventsDuringFxStop(t *testing.T) {
-	var dispatcher event.Dispatcher
+	var dispatcher *event.InMemoryDispatcher
 	var subscriber event.Subscriber
 	app := fxtest.New(
 		t,
 		fx.Supply(
-			eventbus.Config{
-				BufferSize:     1,
-				Workers:        1,
-				HandlerTimeout: "1s",
-			},
+			validConfig(),
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 		),
-		fx.Provide(eventbus.NewDispatcher),
-		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher event.Dispatcher) {
+		fx.Provide(eventbus.NewBestEffort),
+		fx.Invoke(func(lifecycle fx.Lifecycle, dispatcher *event.InMemoryDispatcher) {
 			lifecycle.Append(fx.StopHook(dispatcher.Close))
 		}),
 		fx.Populate(&dispatcher, &subscriber),
@@ -109,8 +101,8 @@ func (h *loggingHandler) Handle(ctx context.Context, ev event.Event) {
 // handler that names its event logs event_kind once, not twice.
 func TestHandlerContextLoggerHasComponentOnly(t *testing.T) {
 	var logs bytes.Buffer
-	dispatcher, subscriber, err := eventbus.NewDispatcher(
-		eventbus.Config{BufferSize: 1, Workers: 1, HandlerTimeout: "1s"},
+	dispatcher, subscriber, err := eventbus.NewBestEffort(
+		validConfig(),
 		slog.New(slog.NewJSONHandler(&logs, nil)),
 	)
 	if err != nil {
@@ -146,8 +138,8 @@ func (h *traceHandler) Handle(ctx context.Context, _ event.Event) {
 // Intent: a Domain Event handler continues the trace of the request that
 // dispatched the event, so what it does and publishes stays on that trace.
 func TestHandlerContinuesTheDispatchersTrace(t *testing.T) {
-	dispatcher, subscriber, err := eventbus.NewDispatcher(
-		eventbus.Config{BufferSize: 1, Workers: 1, HandlerTimeout: "1s"},
+	dispatcher, subscriber, err := eventbus.NewBestEffort(
+		validConfig(),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	if err != nil {

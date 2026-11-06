@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect/v2"
+	"github.com/go-jimu/components/transaction"
 	"github.com/go-jimu/template/internal/business/user/domain"
 )
 
@@ -13,8 +14,17 @@ import (
 // error becomes CodeInternal with a fixed message. The original error stays
 // the cause in every case, never sent but visible to errors.Is and to the
 // interceptor's log.
+//
+// Transaction outcomes carry a fixed message, since they wrap the driver's
+// error. An unknown commit outcome comes first: a commit cut short by a
+// cancelled ctx may still have committed, so the client checks before it
+// retries.
 func mapError(err error) error {
 	switch {
+	case errors.Is(err, transaction.ErrOutcomeUnknown):
+		return connect.NewError(connect.CodeUnknown, "commit outcome unknown; check before retrying").WithCause(err)
+	case errors.Is(err, transaction.ErrConflict):
+		return connect.NewError(connect.CodeAborted, "transaction conflict; retry").WithCause(err)
 	case errors.Is(err, context.Canceled):
 		return publicError(connect.CodeCanceled, err)
 	case errors.Is(err, context.DeadlineExceeded):

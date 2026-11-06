@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/go-jimu/components/transaction"
+	jimuxorm "github.com/go-jimu/contrib/transaction/xorm"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/samber/oops"
 	"go.uber.org/fx"
@@ -131,4 +133,17 @@ func NewMySQLDriver(
 		},
 	})
 	return engine, nil
+}
+
+// NewDB wraps the engine for go-jimu transactions: use cases run in its
+// Manager's Within, and repositories take their session from DB.Session, so
+// they write in the use case's transaction.
+func NewDB(engine *xorm.Engine) (*jimuxorm.DB, error) {
+	return jimuxorm.New(engine)
+}
+
+// NewTransactor returns the business database's transaction Manager, the
+// Transactor of use cases.
+func NewTransactor(db *jimuxorm.DB) transaction.Transactor {
+	return db.Manager()
 }

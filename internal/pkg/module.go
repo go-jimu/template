@@ -2,6 +2,7 @@
 package pkg
 
 import (
+	"github.com/go-jimu/components/ddd/event/outbox"
 	"github.com/go-jimu/template/internal/pkg/connectrpc"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/go-jimu/template/internal/pkg/eventbus"
@@ -17,6 +18,10 @@ var Module = fx.Module(
 	fx.Provide(telemetry.NewTracerProvider),
 	fx.Provide(connectrpc.NewServer),
 	fx.Provide(database.NewMySQLDriver),
-	fx.Provide(eventbus.NewDispatcher),
+	fx.Provide(database.NewDB),
+	fx.Provide(database.NewTransactor),
+	fx.Provide(eventbus.NewBestEffort),
+	fx.Provide(outbox.NewRegistry),
+	fx.Provide(eventbus.NewOutbox),
 	fx.Provide(messagebus.NewKafka),
 )

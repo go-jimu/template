@@ -62,9 +62,11 @@ the stored credential and the replacement password must contain between 8 and
 
 ### Failure tolerance
 
-A successfully persisted User remains registered even when later event
-dispatch, message publication, or welcome-notification work fails. Those
-failures do not compensate or roll back registration in this template.
+A User is registered together with the commitment to announce it: the
+registration stores `UserRegisteredV1`'s pending publication with the User,
+or neither. Publication then retries until it succeeds, at least once; a
+publication or welcome-notification failure never compensates or rolls back
+registration.
 
 ## Notification bounded context
 
@@ -76,9 +78,9 @@ business lifecycle or invariant yet.
 `UserRegisteredV1` is treated as a historical snapshot of the registered User.
 The Notification context translates that published language into its own: the
 registered User becomes a `Recipient`, and the message ID is the `Reference`
-back to the triggering fact.
-Repeated delivery may repeat the observable example behavior; no business
-idempotency rule is defined.
+back to the triggering fact. One registration keeps one message ID across
+every redelivery, so `Reference` identifies it. Repeated delivery may repeat
+the observable example behavior; a real sender deduplicates by `Reference`.
 
 ## Context relationship
 
