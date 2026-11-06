@@ -3,7 +3,7 @@ package connectrpc
 import (
 	"context"
 
-	connect "connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	userpublicv1 "github.com/go-jimu/template/gen/user/public/v1"
 	"github.com/go-jimu/template/gen/user/public/v1/userpublicv1connect"
 	"github.com/go-jimu/template/internal/business/user/application/query"
@@ -28,19 +28,16 @@ func NewProfileHandler(users *query.Users) userpublicv1connect.ProfileServiceHan
 // GetProfile maps the protocol request to the Users.Get query.
 func (h *ProfileHandler) GetProfile(
 	ctx context.Context,
-	request *connect.Request[userpublicv1.GetProfileRequest],
-) (*connect.Response[userpublicv1.GetProfileResponse], error) {
-	if request.Msg.GetId() == "" {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			oops.With("field", "id").Errorf("id is required"),
-		)
+	request *userpublicv1.GetProfileRequest,
+) (*userpublicv1.GetProfileResponse, error) {
+	if request.GetId() == "" {
+		return nil, publicError(connect.CodeInvalidArgument, oops.With("field", "id").Errorf("id is required"))
 	}
-	result, err := h.users.Get(ctx, request.Msg.GetId())
+	result, err := h.users.Get(ctx, request.GetId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&userpublicv1.GetProfileResponse{
+	return &userpublicv1.GetProfileResponse{
 		Profile: readUserToProfile(result),
-	}), nil
+	}, nil
 }

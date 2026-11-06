@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/go-jimu/components/sloghelper"
 	"github.com/samber/oops"
 )
@@ -28,67 +28,75 @@ type Carrier struct {
 	prefix  string
 }
 
-// NewCarrier creates the shared unary interceptor.
+// NewCarrier creates the interceptor shared by both ConnectRPC servers.
 func NewCarrier(logger *slog.Logger) *Carrier {
 	return &Carrier{logger: logger, prefix: requestIDPrefix()}
 }
 
-// Intercept returns the Connect unary interceptor.
-func (c *Carrier) Intercept() connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, request connect.AnyRequest) (
-			response connect.AnyResponse,
-			err error,
-		) {
+// Intercept returns the server interceptor. It wraps the whole call, unary
+// or streaming, and recovers a handler panic as CodeInternal.
+func (c *Carrier) Intercept() connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) (err error) {
 			startedAt := time.Now()
-			requestID := request.Header().Get(headerRequestID)
+			var requestID string
+			if info, ok := connect.CallInfoForServerContext(ctx); ok {
+				requestID = info.RequestHeader().Get(headerRequestID)
+			}
 			if requestID == "" {
 				requestID = fmt.Sprintf("%s-%06d", c.prefix, atomic.AddUint64(&c.counter, 1))
 			}
 			logger := c.logger.With(slog.String("request_id", requestID))
 			ctx = sloghelper.NewContext(ctx, logger)
 
-			var loggedErr error
 			func() {
 				defer func() {
 					if recovered := recover(); recovered != nil {
-						loggedErr = oops.With("panic", fmt.Sprint(recovered)).
-							Errorf("panic recovered")
-						response = nil
-						err = connect.NewError(
-							connect.CodeInternal,
-							errors.New("internal server error"),
-						)
+						err = connect.NewError(connect.CodeInternal, "internal server error").
+							WithCause(oops.With("panic", fmt.Sprint(recovered)).Errorf("panic recovered"))
 					}
 				}()
-				response, err = next(ctx, request)
-				loggedErr = err
+				err = next(ctx, spec, stream)
 			}()
 
 			if err != nil {
+				code := connect.CodeOf(err)
 				logger.Log(
 					ctx,
-					failureLevel(connect.CodeOf(err)),
+					failureLevel(code),
 					"request complete",
-					slog.String("operation", request.Spec().Procedure),
+					slog.String("operation", spec.Procedure),
 					slog.String("outcome", "failed"),
-					slog.String("connect_code", connect.CodeOf(err).String()),
+					slog.String("connect_code", code.String()),
 					slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
-					sloghelper.Error(loggedErr),
+					sloghelper.Error(diagnosis(err)),
 				)
-				return response, err
+				return err
 			}
 			logger.InfoContext(
 				ctx,
 				"request complete",
-				slog.String("operation", request.Spec().Procedure),
+				slog.String("operation", spec.Procedure),
 				slog.String("outcome", "success"),
 				slog.String("connect_code", "ok"),
 				slog.Int64("elapsed_ms", time.Since(startedAt).Milliseconds()),
 			)
-			return response, nil
+			return nil
 		}
 	}
+}
+
+// diagnosis is the error to log for err: the cause behind a *connect.Error,
+// which carries the fields where it entered our code, instead of the message
+// sent to the client; err itself when there is no cause.
+func diagnosis(err error) error {
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		if cause := connectErr.Unwrap(); cause != nil {
+			return cause
+		}
+	}
+	return err
 }
 
 // failureLevel is the log level of a failed RPC by what its code means for

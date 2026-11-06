@@ -53,9 +53,11 @@ validation and mapping, delegate once to the Application (writes) or
 `query.Users` (reads), map the result,
 and translate errors to Connect codes.
 
-Generated API types remain outside Domain and Application inputs. Unexpected
-internal errors retain their local diagnostic cause but expose only a safe
-public Connect message.
+Generated API types remain outside Domain and Application inputs. connect-go
+sends a client only the `*connect.Error` values Transport builds: an outcome
+the client can act on carries its error's message, and any other error becomes
+`internal` with a fixed message. The original error stays attached as the
+local cause for `errors.Is` and the interceptor's log, and is never sent.
 
 Two RPC contracts serve two audiences on separate listeners, so exposing the
 public port never exposes a private contract:
@@ -68,13 +70,16 @@ public port never exposes a private contract:
   breaking change becomes `user.public.v2` alongside v1. `GetProfile` is
   marked `NO_SIDE_EFFECTS`, so clients may call it with a cacheable HTTP GET.
   Profiles are public, so it carries no authentication; a public RPC over a
-  caller's own data adds an authentication interceptor on its handler.
+  caller's own data adds an authentication interceptor to the public server,
+  which runs for every public procedure and checks those that need it by
+  `spec.Procedure`.
 
 `connect.addr` serves the private contracts and `connect.public-addr` the
 public ones; only the public port is exposed outside the deployment.
 
-The shared ConnectRPC interceptor creates request-scoped logging context,
-recovers panics, and owns the single outer error log for an RPC request.
+The shared ConnectRPC interceptor runs on both servers. It creates
+request-scoped logging context, recovers panics, and owns the single outer
+error log for an RPC request, unary or streaming.
 
 ## Domain Events and Integration Messages
 

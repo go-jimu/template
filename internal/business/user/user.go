@@ -2,7 +2,6 @@
 package user
 
 import (
-	connect "connectrpc.com/connect"
 	"github.com/go-jimu/components/ddd/event"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/gen/user/public/v1/userpublicv1connect"
@@ -41,13 +40,7 @@ var Module = fx.Module(
 	) {
 		// private/v1 serves this deployment; public/v1 serves web and app
 		// clients on its own listener, the only one to expose.
-		private.Register(userv1connect.NewUserServiceHandler(
-			handler,
-			connect.WithInterceptors(private.GetGlobalInterceptors()...),
-		))
-		public.Register(userpublicv1connect.NewProfileServiceHandler(
-			profiles,
-			connect.WithInterceptors(public.GetGlobalInterceptors()...),
-		))
+		userv1connect.RegisterUserServiceHandler(private.Registry(), handler)
+		userpublicv1connect.RegisterProfileServiceHandler(public.Registry(), profiles)
 	}),
 )

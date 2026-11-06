@@ -3,7 +3,7 @@ module github.com/go-jimu/template
 go 1.26.0
 
 require (
-	connectrpc.com/connect v1.20.0
+	connectrpc.com/connect/v2 v2.0.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-jimu/components v0.12.0
 	github.com/go-jimu/contrib/message/kafka v0.5.1

@@ -1,16 +1,21 @@
 package connectrpc_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type servers struct {
@@ -42,9 +47,26 @@ func startServers(t *testing.T, register func(sharedconnectrpc.PrivateServer, sh
 
 func status(t *testing.T, method, url string) int {
 	t.Helper()
-	request, err := http.NewRequest(method, url, nil)
+	return send(t, method, url, nil)
+}
+
+// send makes one request; a POST is a Connect unary call with an empty JSON
+// message.
+func send(t *testing.T, method, url string, header http.Header) int {
+	t.Helper()
+	var body io.Reader
+	if method == http.MethodPost {
+		body = strings.NewReader("{}")
+	}
+	request, err := http.NewRequest(method, url, body)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if method == http.MethodPost {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	for key, values := range header {
+		request.Header[key] = values
 	}
 	response, err := (&http.Client{Timeout: time.Second}).Do(request)
 	if err != nil {
@@ -54,8 +76,18 @@ func status(t *testing.T, method, url string) int {
 	return response.StatusCode
 }
 
-func handlerWithStatus(code int) http.Handler {
-	return http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) { response.WriteHeader(code) })
+// register adds a unary procedure, such as "/test.v1.Service/Call", that
+// answers an empty message.
+func register(server sharedconnectrpc.Server, procedure string) {
+	server.Registry().Register(connect.Method{
+		Spec: connect.Spec{StreamType: connect.StreamTypeUnary, Procedure: procedure},
+		Handler: func(_ context.Context, _ connect.Spec, stream connect.ServerStream) error {
+			if err := stream.Receive(&emptypb.Empty{}); err != nil {
+				return err
+			}
+			return stream.Send(&emptypb.Empty{})
+		},
+	})
 }
 
 // Intent: private and public contracts listen on separate ports, so exposing
@@ -63,8 +95,8 @@ func handlerWithStatus(code int) http.Handler {
 // Each port answers the probes and only its own services.
 func TestPrivateAndPublicListenSeparately(t *testing.T) {
 	app, s := startServers(t, func(private sharedconnectrpc.PrivateServer, public sharedconnectrpc.PublicServer) {
-		private.Register("/test.private.v1.Service/", handlerWithStatus(http.StatusNoContent))
-		public.Register("/test.public.v1.Service/", handlerWithStatus(http.StatusAccepted))
+		register(private, "/test.private.v1.Service/Call")
+		register(public, "/test.public.v1.Service/Call")
 	})
 	defer app.RequireStop()
 
@@ -76,8 +108,8 @@ func TestPrivateAndPublicListenSeparately(t *testing.T) {
 		name, url string
 		want      int
 	}{
-		{"private service on private port", privateURL + "/test.private.v1.Service/Call", http.StatusNoContent},
-		{"public service on public port", publicURL + "/test.public.v1.Service/Call", http.StatusAccepted},
+		{"private service on private port", privateURL + "/test.private.v1.Service/Call", http.StatusOK},
+		{"public service on public port", publicURL + "/test.public.v1.Service/Call", http.StatusOK},
 		{"private service on public port", publicURL + "/test.private.v1.Service/Call", http.StatusNotFound},
 		{"public service on private port", privateURL + "/test.public.v1.Service/Call", http.StatusNotFound},
 	}
@@ -95,13 +127,12 @@ func TestPrivateAndPublicListenSeparately(t *testing.T) {
 	}
 }
 
-// Intent: routing keeps the contract generated Connect handlers and probes
-// rely on: a service is mounted on its path prefix with or without the
-// trailing slash, probes answer GET only, and other paths are not found.
+// Intent: a server routes the procedures registered before start, an
+// unknown method of a registered service is Connect's unimplemented (501),
+// probes answer GET only, and other paths are not found.
 func TestServerRouting(t *testing.T) {
 	app, s := startServers(t, func(private sharedconnectrpc.PrivateServer, _ sharedconnectrpc.PublicServer) {
-		private.Register("/with.Slash/", handlerWithStatus(http.StatusNoContent))
-		private.Register("/without.Slash", handlerWithStatus(http.StatusAccepted))
+		register(private, "/test.v1.Service/Call")
 	})
 	defer app.RequireStop()
 
@@ -110,15 +141,68 @@ func TestServerRouting(t *testing.T) {
 		method, path string
 		want         int
 	}{
-		{http.MethodPost, "/with.Slash/Call", http.StatusNoContent},
-		{http.MethodPost, "/without.Slash/Call", http.StatusAccepted},
+		{http.MethodPost, "/test.v1.Service/Call", http.StatusOK},
+		{http.MethodPost, "/test.v1.Service/Unknown", http.StatusNotImplemented},
+		{http.MethodPost, "/unknown.v1.Service/Call", http.StatusNotFound},
 		{http.MethodPost, "/healthz", http.StatusMethodNotAllowed},
 		{http.MethodPost, "/readyz", http.StatusMethodNotAllowed},
-		{http.MethodGet, "/unknown.Service/Call", http.StatusNotFound},
 	}
 	for _, test := range tests {
 		if got := status(t, test.method, base+test.path); got != test.want {
 			t.Errorf("%s %s status = %d, want %d", test.method, test.path, got, test.want)
+		}
+	}
+}
+
+// syncBuffer is a log destination safe to write from server goroutines.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// Intent: every RPC runs through the shared interceptor, which logs it under
+// the caller's X-Request-ID, so a request is traceable across services.
+func TestServersRunTheSharedInterceptor(t *testing.T) {
+	var logs syncBuffer
+	out, err := sharedconnectrpc.NewServer(nil, sharedconnectrpc.Option{
+		Addr: "127.0.0.1:0", PublicAddr: "127.0.0.1:0",
+	}, slog.New(slog.NewJSONHandler(&logs, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	register(out.Private, "/test.private.v1.Service/Call")
+	register(out.Public, "/test.public.v1.Service/Call")
+	if err = out.ServeHook.OnStart(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for _, url := range []string{
+		"http://" + out.Private.Address() + "/test.private.v1.Service/Call",
+		"http://" + out.Public.Address() + "/test.public.v1.Service/Call",
+	} {
+		if got := send(t, http.MethodPost, url, http.Header{"X-Request-Id": {"caller-request"}}); got != http.StatusOK {
+			t.Fatalf("POST %s = %d, want 200", url, got)
+		}
+	}
+	if err = out.ServeHook.OnStop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, procedure := range []string{"/test.private.v1.Service/Call", "/test.public.v1.Service/Call"} {
+		want := `"request_id":"caller-request","operation":"` + procedure + `"`
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("logs do not contain %s:\n%s", want, logs.String())
 		}
 	}
 }
@@ -148,7 +232,7 @@ func startDirect(t *testing.T, delay string) (sharedconnectrpc.ServeOut, func(co
 	if err != nil {
 		t.Fatal(err)
 	}
-	out.Public.Register("/test.public.v1.Service/", handlerWithStatus(http.StatusAccepted))
+	register(out.Public, "/test.public.v1.Service/Call")
 	if err = out.ServeHook.OnStart(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -186,8 +270,8 @@ func TestShutdownDelayKeepsServingWhileNotReady(t *testing.T) {
 	if got := status(t, http.MethodGet, privateURL+"/readyz"); got != http.StatusServiceUnavailable {
 		t.Errorf("private /readyz = %d during the delay, want 503", got)
 	}
-	if got := status(t, http.MethodPost, publicURL+"/test.public.v1.Service/Call"); got != http.StatusAccepted {
-		t.Errorf("request during the delay = %d, want 202: the listener must still serve", got)
+	if got := status(t, http.MethodPost, publicURL+"/test.public.v1.Service/Call"); got != http.StatusOK {
+		t.Errorf("request during the delay = %d, want 200: the listener must still serve", got)
 	}
 
 	if err := <-done; err != nil {

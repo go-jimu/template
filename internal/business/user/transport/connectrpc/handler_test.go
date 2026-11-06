@@ -2,10 +2,12 @@ package connectrpc_test
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	connect "connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	userv1 "github.com/go-jimu/template/gen/user/private/v1"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
@@ -39,13 +41,13 @@ func TestGetUsesGeneratedConnectContract(t *testing.T) {
 
 	response, err := client.Get(
 		context.Background(),
-		connect.NewRequest(&userv1.GetRequest{Id: repository.user.ID}),
+		&userv1.GetRequest{Id: repository.user.ID},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetUser().GetEmail() != repository.user.Email {
-		t.Fatalf("response user = %#v", response.Msg.GetUser())
+	if response.GetUser().GetEmail() != repository.user.Email {
+		t.Fatalf("response user = %#v", response.GetUser())
 	}
 }
 
@@ -55,7 +57,7 @@ func TestGetMapsNotFoundToConnectCode(t *testing.T) {
 
 	_, err := client.Get(
 		context.Background(),
-		connect.NewRequest(&userv1.GetRequest{Id: "missing-user"}),
+		&userv1.GetRequest{Id: "missing-user"},
 	)
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("Connect code = %s, want %s (error: %v)", connect.CodeOf(err), connect.CodeNotFound, err)
@@ -68,15 +70,15 @@ func TestListRoundTripsPageToken(t *testing.T) {
 	client, closeServer := newUserClient(t, repository)
 	defer closeServer()
 
-	first, err := client.List(context.Background(), connect.NewRequest(&userv1.ListRequest{PageSize: 1}))
+	first, err := client.List(context.Background(), &userv1.ListRequest{PageSize: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	token := first.Msg.GetNextPageToken()
+	token := first.GetNextPageToken()
 	if token == "" || token == cursor {
 		t.Fatalf("next_page_token = %q, want an opaque token", token)
 	}
-	if _, err = client.List(context.Background(), connect.NewRequest(&userv1.ListRequest{PageToken: token})); err != nil {
+	if _, err = client.List(context.Background(), &userv1.ListRequest{PageToken: token}); err != nil {
 		t.Fatal(err)
 	}
 	if repository.filter.After != cursor {
@@ -88,7 +90,7 @@ func TestListRejectsMalformedPageToken(t *testing.T) {
 	client, closeServer := newUserClient(t, &queryRepositoryStub{})
 	defer closeServer()
 
-	_, err := client.List(context.Background(), connect.NewRequest(&userv1.ListRequest{PageToken: "%%%"}))
+	_, err := client.List(context.Background(), &userv1.ListRequest{PageToken: "%%%"})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("Connect code = %s, want %s", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
@@ -100,8 +102,11 @@ func newUserClient(
 ) (userv1connect.UserServiceClient, func()) {
 	t.Helper()
 	service := userconnectrpc.NewHandler(application.NewApplication(nil, nil), query.NewUsers(repository))
-	_, handler := userv1connect.NewUserServiceHandler(service)
-	server := httptest.NewServer(handler)
-	client := userv1connect.NewUserServiceClient(server.Client(), server.URL)
+	registry := connect.NewServer()
+	userv1connect.RegisterUserServiceHandler(registry, service)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, registry)
+	server := httptest.NewServer(mux)
+	client := userv1connect.NewUserServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
 	return client, server.Close
 }
