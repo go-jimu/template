@@ -2,12 +2,13 @@
 package user
 
 import (
-	"github.com/go-jimu/components/ddd/event"
+	"github.com/go-jimu/components/ddd/event/outbox"
 	"github.com/go-jimu/template/gen/user/private/v1/userv1connect"
 	"github.com/go-jimu/template/gen/user/public/v1/userpublicv1connect"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/application/eventhandler"
 	"github.com/go-jimu/template/internal/business/user/application/query"
+	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/go-jimu/template/internal/business/user/infrastructure"
 	userconnectrpc "github.com/go-jimu/template/internal/business/user/transport/connectrpc"
 	sharedconnectrpc "github.com/go-jimu/template/internal/pkg/connectrpc"
@@ -26,11 +27,17 @@ var Module = fx.Module(
 		userconnectrpc.NewHandler,
 		userconnectrpc.NewProfileHandler,
 	),
+	// Register every Domain Event type a must-run handler listens to, then
+	// subscribe the must-run handlers to the Outbox.
 	fx.Invoke(func(
-		subscriber event.Subscriber,
+		registry *outbox.Registry,
+		relay *outbox.Outbox,
 		handler *eventhandler.UserCreatedHandler,
-	) {
-		subscriber.Subscribe(handler)
+	) error {
+		if err := outbox.Register[domain.UserCreated](registry); err != nil {
+			return err
+		}
+		return relay.Subscribe(handler)
 	}),
 	fx.Invoke(func(
 		handler userv1connect.UserServiceHandler,

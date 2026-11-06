@@ -28,8 +28,9 @@ type Recipient struct {
 // SendWelcomeNotification is the command to welcome a new Recipient.
 type SendWelcomeNotification struct {
 	Recipient Recipient
-	// Reference identifies the upstream fact that triggered the notification,
-	// for tracing and, once delivery is real, for idempotency.
+	// Reference identifies the upstream fact that triggered the notification:
+	// the message ID, the same on every redelivery of one registration. A
+	// command may repeat; a real sender deduplicates by Reference.
 	Reference string
 }
 

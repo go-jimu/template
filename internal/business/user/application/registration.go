@@ -13,18 +13,23 @@ type CreateUser struct {
 	Email    string
 }
 
-// CreateUser registers a User, persists it, then dispatches its Domain Events.
-// Registration succeeds once the User is saved: a dispatch error means only
-// that the follow-ups will not run, and the dispatcher has already logged each
-// rejected event, so the error is ignored here.
+// CreateUser registers a User: it saves the User and dispatches its Domain
+// Events in one transaction, so the events are recorded exactly when the User
+// is. A dispatch error means the events cannot be recorded, so it rolls the
+// registration back.
 func (a *Application) CreateUser(ctx context.Context, cmd CreateUser) (*User, error) {
 	user, err := domain.NewUser(cmd.Name, cmd.Password, cmd.Email)
 	if err != nil {
 		return nil, err
 	}
-	if err = a.repository.Save(ctx, user); err != nil {
+	err = a.transactor.Within(ctx, func(ctx context.Context) error {
+		if err := a.repository.Save(ctx, user); err != nil {
+			return err
+		}
+		return a.dispatcher.DispatchAll(ctx, user.Events.Drain())
+	})
+	if err != nil {
 		return nil, err
 	}
-	_ = a.dispatcher.DispatchAll(ctx, user.Events.Drain())
 	return AssembleUserEntity(user), nil
 }

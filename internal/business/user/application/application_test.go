@@ -1,14 +1,13 @@
 package application_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"log/slog"
 	"testing"
 
 	"github.com/go-jimu/components/ddd/event"
-	"github.com/go-jimu/components/sloghelper"
+	"github.com/go-jimu/components/transaction"
+	"github.com/go-jimu/components/transaction/transactiontest"
 	"github.com/go-jimu/template/internal/business/user/application"
 	"github.com/go-jimu/template/internal/business/user/domain"
 )
@@ -19,31 +18,40 @@ type repositoryFake struct {
 	saveErr   error
 	saveCalls int
 	order     *[]string
+	// inTransaction records whether each Save ran inside a transaction.
+	inTransaction []bool
 }
 
 func (r *repositoryFake) Get(context.Context, string) (*domain.User, error) {
 	return r.user, r.getErr
 }
 
-func (r *repositoryFake) Save(context.Context, *domain.User) error {
+func (r *repositoryFake) Save(ctx context.Context, _ *domain.User) error {
 	r.saveCalls++
 	if r.order != nil {
 		*r.order = append(*r.order, "save")
 	}
+	_, err := transaction.Value(ctx, saveProbe{}, func() bool { return true })
+	r.inTransaction = append(r.inTransaction, err == nil)
 	return r.saveErr
 }
 
+type saveProbe struct{}
+
 type dispatcherFake struct {
-	dispatchErr error
-	events      []event.Event
-	order       *[]string
+	dispatchErr   error
+	events        []event.Event
+	order         *[]string
+	inTransaction []bool
 }
 
 func (d *dispatcherFake) Dispatch(ctx context.Context, domainEvent event.Event) error {
 	return d.DispatchAll(ctx, []event.Event{domainEvent})
 }
 
-func (d *dispatcherFake) DispatchAll(_ context.Context, events []event.Event) error {
+func (d *dispatcherFake) DispatchAll(ctx context.Context, events []event.Event) error {
+	_, err := transaction.Value(ctx, saveProbe{}, func() bool { return true })
+	d.inTransaction = append(d.inTransaction, err == nil)
 	if d.order != nil {
 		*d.order = append(*d.order, "dispatch")
 	}
@@ -53,10 +61,27 @@ func (d *dispatcherFake) DispatchAll(_ context.Context, events []event.Event) er
 
 func (*dispatcherFake) Close(context.Context) error { return nil }
 
-func TestCreateUserPersistsBeforeDispatch(t *testing.T) {
+func newApplication(
+	t *testing.T,
+	repository domain.Repository,
+	dispatcher event.Dispatcher,
+) (*application.Application, *transactiontest.Driver) {
+	t.Helper()
+	driver := new(transactiontest.Driver)
+	manager, err := transaction.NewManager(driver)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return application.NewApplication(manager, repository, dispatcher), driver
+}
+
+// Intent: the User and its events are written in one committed transaction,
+// so the Outbox records the events exactly when the User is saved.
+func TestCreateUserSavesAndDispatchesInOneTransaction(t *testing.T) {
 	order := make([]string, 0, 2)
+	repository := &repositoryFake{order: &order}
 	dispatcher := &dispatcherFake{order: &order}
-	app := application.NewApplication(&repositoryFake{order: &order}, dispatcher)
+	app, driver := newApplication(t, repository, dispatcher)
 
 	result, err := app.CreateUser(context.Background(), application.CreateUser{
 		Name: "Alice", Password: "current-pass", Email: "alice@example.com",
@@ -73,12 +98,18 @@ func TestCreateUserPersistsBeforeDispatch(t *testing.T) {
 	if len(dispatcher.events) != 1 {
 		t.Fatalf("dispatched event count = %d, want 1", len(dispatcher.events))
 	}
+	if len(driver.Transactions()) != 1 || driver.Last().State() != transactiontest.Committed {
+		t.Fatalf("transactions = %d, last = %s, want one committed", len(driver.Transactions()), driver.Last().State())
+	}
+	if !repository.inTransaction[0] || !dispatcher.inTransaction[0] {
+		t.Fatalf("save/dispatch in transaction = %v/%v, want both", repository.inTransaction, dispatcher.inTransaction)
+	}
 }
 
 func TestCreateUserDoesNotDispatchWhenSaveFails(t *testing.T) {
 	saveErr := errors.New("database unavailable")
 	dispatcher := &dispatcherFake{}
-	app := application.NewApplication(&repositoryFake{saveErr: saveErr}, dispatcher)
+	app, driver := newApplication(t, &repositoryFake{saveErr: saveErr}, dispatcher)
 
 	_, err := app.CreateUser(context.Background(), application.CreateUser{
 		Name: "Alice", Password: "current-pass", Email: "alice@example.com",
@@ -89,26 +120,25 @@ func TestCreateUserDoesNotDispatchWhenSaveFails(t *testing.T) {
 	if len(dispatcher.events) != 0 {
 		t.Fatalf("dispatched %d events after failed save", len(dispatcher.events))
 	}
+	if driver.Last().State() != transactiontest.RolledBack {
+		t.Fatalf("transaction %s, want rolled back", driver.Last().State())
+	}
 }
 
-// The dispatcher reports every rejected event itself, so a dispatch error
-// neither fails registration nor is logged again by the use case.
-func TestCreateUserSucceedsWhenDispatchFails(t *testing.T) {
+// Intent: events that cannot be recorded fail the registration, and the User
+// is rolled back with them, so no User exists without its events.
+func TestCreateUserRollsBackWhenDispatchFails(t *testing.T) {
 	dispatcher := &dispatcherFake{dispatchErr: event.ErrDispatcherClosed}
-	app := application.NewApplication(&repositoryFake{}, dispatcher)
-	var logs bytes.Buffer
-	ctx := sloghelper.NewContext(
-		context.Background(),
-		slog.New(slog.NewJSONHandler(&logs, nil)),
-	)
+	app, driver := newApplication(t, &repositoryFake{}, dispatcher)
 
-	if _, err := app.CreateUser(ctx, application.CreateUser{
+	_, err := app.CreateUser(context.Background(), application.CreateUser{
 		Name: "Alice", Password: "current-pass", Email: "alice@example.com",
-	}); err != nil {
-		t.Fatalf("CreateUser() error = %v, want nil after the User is saved", err)
+	})
+	if !errors.Is(err, event.ErrDispatcherClosed) {
+		t.Fatalf("CreateUser() error = %v, want %v", err, event.ErrDispatcherClosed)
 	}
-	if logs.Len() != 0 {
-		t.Fatalf("CreateUser logged %q; the dispatcher reports rejected events", logs.String())
+	if driver.Last().State() != transactiontest.RolledBack {
+		t.Fatalf("transaction %s, want rolled back", driver.Last().State())
 	}
 }
 
@@ -118,7 +148,7 @@ func TestChangePasswordSavesChangedUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	repository := &repositoryFake{user: user}
-	app := application.NewApplication(repository, &dispatcherFake{})
+	app, _ := newApplication(t, repository, &dispatcherFake{})
 
 	err = app.ChangePassword(context.Background(), application.ChangePassword{
 		UserID: user.ID, CurrentPassword: "current-pass", NewPassword: "next-pass-1",
@@ -137,7 +167,7 @@ func TestChangePasswordDoesNotSaveRejectedChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	repository := &repositoryFake{user: user}
-	app := application.NewApplication(repository, &dispatcherFake{})
+	app, _ := newApplication(t, repository, &dispatcherFake{})
 
 	err = app.ChangePassword(context.Background(), application.ChangePassword{
 		UserID: user.ID, CurrentPassword: "wrong-pass", NewPassword: "next-pass-1",

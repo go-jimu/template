@@ -1,6 +1,7 @@
-// Package eventbus builds the in-process Domain Event dispatcher. The
-// dispatcher is drained by pkg.Lifecycle, which closes it after the servers
-// and consumers that feed it have finished their running work.
+// Package eventbus builds the two Domain Event dispatchers. Use cases dispatch
+// to the Outbox, inside their transaction; it records the events for the
+// must-run handlers and hands every committed event to the best-effort
+// dispatcher. pkg.Lifecycle runs the Outbox's Relay and closes both.
 package eventbus
 
 import (
@@ -17,12 +18,13 @@ import (
 
 // Config contains Domain Event dispatcher runtime settings.
 type Config struct {
-	BufferSize     int    `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
-	Workers        int    `json:"workers" toml:"workers" yaml:"workers"`
-	HandlerTimeout string `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
+	BufferSize     int          `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
+	Workers        int          `json:"workers" toml:"workers" yaml:"workers"`
+	HandlerTimeout string       `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
+	Outbox         OutboxConfig `json:"outbox" toml:"outbox" yaml:"outbox"`
 }
 
-// Validate checks the Domain Event dispatcher component's own configuration.
+// Validate checks the Domain Event dispatchers' own configuration.
 func (c Config) Validate() error {
 	if c.BufferSize < 1 {
 		return fmt.Errorf("eventbus buffer-size must be positive")
@@ -39,14 +41,16 @@ func (c Config) Validate() error {
 	if handlerTimeout <= 0 {
 		return fmt.Errorf("eventbus handler-timeout must be positive")
 	}
-	return nil
+	return c.Outbox.Validate()
 }
 
-// NewDispatcher creates the one shared dispatcher.
-func NewDispatcher(
+// NewBestEffort creates the in-memory dispatcher of best-effort handlers:
+// handlers whose effects may be lost, such as cache invalidation. It receives
+// every Domain Event of a committed transaction from the Outbox.
+func NewBestEffort(
 	config Config,
 	logger *slog.Logger,
-) (event.Dispatcher, event.Subscriber, error) {
+) (*event.InMemoryDispatcher, event.Subscriber, error) {
 	if err := config.Validate(); err != nil {
 		return nil, nil, err
 	}

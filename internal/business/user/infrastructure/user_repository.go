@@ -6,27 +6,32 @@ import (
 	"errors"
 	"time"
 
+	jimuxorm "github.com/go-jimu/contrib/transaction/xorm"
 	"github.com/go-jimu/template/internal/business/user/domain"
 	"github.com/go-jimu/template/internal/pkg/database"
 	"github.com/samber/oops"
-	"xorm.io/xorm"
 )
 
 type userRepository struct {
-	engine *xorm.Engine
+	db *jimuxorm.DB
 }
 
 var _ domain.Repository = (*userRepository)(nil)
 
-// NewUserRepository creates the xorm-backed User Aggregate Repository.
-func NewUserRepository(engine *xorm.Engine) domain.Repository {
-	return &userRepository{engine: engine}
+// NewUserRepository creates the xorm-backed User Aggregate Repository. Its
+// statements run in the use case's transaction when there is one.
+func NewUserRepository(db *jimuxorm.DB) domain.Repository {
+	return &userRepository{db: db}
 }
 
 // Get loads one non-deleted User Aggregate.
 func (r *userRepository) Get(ctx context.Context, userID string) (*domain.User, error) {
+	session, err := r.db.Session(ctx)
+	if err != nil {
+		return nil, oops.With("operation", "user.get").With("user_id", userID).Wrap(err)
+	}
 	data := new(userDO)
-	found, err := r.engine.Context(ctx).
+	found, err := session.
 		Cols("id", "name", "password", "email", "version", "created_at", "updated_at", "deleted_at").
 		Where("id = ? AND deleted_at = 0", userID).
 		Get(data)
@@ -54,6 +59,10 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 	if user == nil {
 		return oops.With("operation", "user.save").Wrap(errors.New("nil aggregate"))
 	}
+	session, err := r.db.Session(ctx)
+	if err != nil {
+		return oops.With("operation", "user.save").With("user_id", user.ID).Wrap(err)
+	}
 	data := userToDO(user)
 	now := time.Now().UTC()
 
@@ -62,7 +71,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 		data.CreatedAt = database.NewTimestamp(now)
 		data.UpdatedAt = database.NewTimestamp(now)
 		data.DeletedAt = database.NewTimestamp(database.UnixEpoch)
-		affected, err := r.engine.Context(ctx).Insert(data)
+		affected, err := session.Insert(data)
 		if err != nil {
 			return oops.With("operation", "user.insert").
 				With("user_id", user.ID).
@@ -77,7 +86,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 	}
 
 	data.UpdatedAt = database.NewTimestamp(now)
-	affected, err := r.engine.Context(ctx).
+	affected, err := session.
 		Cols("name", "password", "email", "updated_at").
 		Incr("version").
 		Where("id = ? AND version = ? AND deleted_at = 0", user.ID, user.Version).

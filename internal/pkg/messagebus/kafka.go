@@ -176,8 +176,8 @@ func NewKafka(
 	// Closing the client is not resource cleanup; it is kept for two reasons.
 	// It leaves the consumer group, so a rolling deploy reassigns this
 	// member's partitions at once instead of after the session timeout. And
-	// the publisher shares the client, so it closes here, after the Domain
-	// Event dispatcher drains (pkg.Lifecycle), whose handlers still publish.
+	// the publisher shares the client, so it closes here, after the Outbox
+	// closes (pkg.Lifecycle), whose handlers still publish.
 	lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if err := client.Ping(ctx); err != nil {
