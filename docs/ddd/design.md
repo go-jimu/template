@@ -152,7 +152,10 @@ handler's backlog.
 it again, and Kafka may redeliver it. The Kafka consumer's `failure-policy` is
 `retry` by default, which handles a failed message again in place, after a
 backoff and before the rest of its partition, and drops it after 3 attempts;
-or `drop`, which commits it at once.
+or `drop`, which commits it at once. The subscriber wraps
+`message.ErrPermanent` around an error for a payload that breaks the published
+contract, which fails the same way on every delivery, so `retry` drops it at
+once instead of holding the partition.
 
 The template deliberately excludes a dead-letter store, durable notification
 state, and idempotency storage. A production service must make an explicit
