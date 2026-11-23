@@ -140,7 +140,8 @@ UserCreated (User Domain Event)
 
 `UserCreated` and `UserRegisteredV1` are intentionally different. The Kafka
 `failure-policy` is `retry` (in place, after a backoff, dropped after 3
-attempts) or `drop`. Delivery is at least once, under a message ID stable
+attempts) or `drop`. A payload that breaks the published contract fails the
+subscriber with `message.ErrPermanent` and is dropped at once. Delivery is at least once, under a message ID stable
 across retries; the example does not implement idempotency storage, a
 dead-letter store, or durable notification state.
 

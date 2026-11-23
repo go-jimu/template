@@ -3,6 +3,7 @@ package messagesubscriber
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-jimu/components/ddd/message"
 	userintegrationv1 "github.com/go-jimu/template/gen/user/integration/v1"
@@ -30,6 +31,9 @@ func (*UserRegisteredSubscriber) Listening() []message.Kind {
 }
 
 // Handle validates the published payload before translating it into local work.
+// A payload that breaks the published contract fails the same way on every
+// delivery, so that error wraps message.ErrPermanent and the consumer does
+// not retry it. An application error stays retryable.
 func (s *UserRegisteredSubscriber) Handle(
 	ctx context.Context,
 	integrationMessage message.Message,
@@ -38,25 +42,25 @@ func (s *UserRegisteredSubscriber) Handle(
 	if !ok {
 		return oops.With("message_id", integrationMessage.ID()).
 			With("message_kind", string(integrationMessage.Kind())).
-			Errorf("unexpected integration message payload %T", integrationMessage.Payload())
+			Wrapf(message.ErrPermanent, "unexpected integration message payload %T", integrationMessage.Payload())
 	}
 	if payload.GetUserId() == "" || payload.GetName() == "" || payload.GetEmail() == "" {
 		return oops.With("message_id", integrationMessage.ID()).
 			With("message_kind", string(integrationMessage.Kind())).
 			With("user_id", payload.GetUserId()).
-			Errorf("invalid user registered payload")
+			Wrapf(message.ErrPermanent, "invalid user registered payload")
 	}
 	if payload.GetOccurredAt() == nil {
 		return oops.With("message_id", integrationMessage.ID()).
 			With("message_kind", string(integrationMessage.Kind())).
 			With("user_id", payload.GetUserId()).
-			Errorf("user registered occurrence time is required")
+			Wrapf(message.ErrPermanent, "user registered occurrence time is required")
 	}
 	if err := payload.GetOccurredAt().CheckValid(); err != nil {
 		return oops.With("message_id", integrationMessage.ID()).
 			With("message_kind", string(integrationMessage.Kind())).
 			With("user_id", payload.GetUserId()).
-			Wrap(err)
+			Wrap(fmt.Errorf("%w: %w", message.ErrPermanent, err))
 	}
 	// Translate User's published language into Notification's own. The message
 	// ID stays the same on redelivery, so it is the Reference.
