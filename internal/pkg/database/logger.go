@@ -29,8 +29,10 @@ func (l *XormSlog) Debugf(format string, v ...any) {
 	l.logger.Debug(fmt.Sprintf(format, v...))
 }
 
-// Error and Errorf log at Error: xorm reports through them the failures it
-// swallows rather than returns, such as a failed Scan or version write-back.
+// Error and Errorf log at Error: xorm reports through them errors it logs
+// rather than returns, such as a failed sql.Scanner.Scan (xorm then falls
+// back to its own conversion) or a failed version or auto-increment
+// write-back after an insert.
 func (l *XormSlog) Error(v ...any) {
 	l.logger.Error(
 		"xorm reported an error",
