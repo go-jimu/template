@@ -29,15 +29,19 @@ func (l *XormSlog) Debugf(format string, v ...any) {
 	l.logger.Debug(fmt.Sprintf(format, v...))
 }
 
+// Error and Errorf log at Error: xorm reports through them errors it logs
+// rather than returns, such as a failed sql.Scanner.Scan (xorm then falls
+// back to its own conversion) or a failed version or auto-increment
+// write-back after an insert.
 func (l *XormSlog) Error(v ...any) {
-	l.logger.Debug(
+	l.logger.Error(
 		"xorm reported an error",
 		slog.String("detail", fmt.Sprint(v...)),
 	)
 }
 
 func (l *XormSlog) Errorf(format string, v ...any) {
-	l.logger.Debug(
+	l.logger.Error(
 		"xorm reported an error",
 		slog.String("detail", fmt.Sprintf(format, v...)),
 	)
@@ -64,7 +68,8 @@ func (l *XormSlog) Level() log.LogLevel {
 		return log.LOG_OFF
 	}
 
-	for _, level := range []slog.Level{slog.LevelError, slog.LevelWarn, slog.LevelInfo, slog.LevelDebug} {
+	// The most verbose enabled level, so search from Debug up.
+	for _, level := range []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError} {
 		if l.logger.Enabled(context.TODO(), level) {
 			switch level {
 			case slog.LevelDebug:
